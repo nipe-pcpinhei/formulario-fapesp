@@ -1,0 +1,1462 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gerador de Formulários FAPESP</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root {
+    --bg: #f5f7fa;
+    --surface: #ffffff;
+    --border: #d1d9e6;
+    --primary: #1e4d8c;
+    --primary-hover: #163a6b;
+    --accent: #e8effa;
+    --text: #1a2332;
+    --text-muted: #5a6a80;
+    --success: #1a7f4b;
+    --error: #c0392b;
+    --yellow: #fffbe6;
+    --yellow-border: #f0c040;
+    --section-bg: #edf2fb;
+    --input-bg: #fafbfd;
+    --radius: 8px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #111827;
+      --surface: #1f2937;
+      --border: #374151;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --accent: #1e3a5f;
+      --text: #f9fafb;
+      --text-muted: #9ca3af;
+      --section-bg: #162032;
+      --input-bg: #111827;
+      --yellow: #2a2200;
+      --yellow-border: #7a6010;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  
+  header {
+    background: var(--primary);
+    color: white;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  header .logo { font-size: 28px; }
+  header h1 { font-size: 18px; font-weight: 700; line-height: 1.2; }
+  header p { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+
+  .container { max-width: 860px; margin: 0 auto; padding: 28px 20px 60px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--primary);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--accent);
+  }
+
+  .form-row { display: grid; gap: 14px; margin-bottom: 14px; }
+  .form-row.cols-2 { grid-template-columns: 1fr 1fr; }
+  .form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .form-row.cols-1 { grid-template-columns: 1fr; }
+  @media (max-width: 600px) {
+    .form-row.cols-2, .form-row.cols-3 { grid-template-columns: 1fr; }
+  }
+
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
+  label span.req { color: var(--error); margin-left: 2px; }
+  
+  input, select, textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13.5px;
+    font-family: inherit;
+    background: var(--input-bg);
+    color: var(--text);
+    transition: border-color 0.15s, box-shadow 0.15s;
+    appearance: auto;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(30,77,140,0.12);
+  }
+  select { cursor: pointer; }
+  textarea { resize: vertical; min-height: 60px; }
+  
+  .field-group { }
+
+  /* Trip rows */
+  .trip-row {
+    display: grid;
+    grid-template-columns: 110px 80px 1fr 110px 80px 1fr;
+    gap: 8px;
+    align-items: end;
+    margin-bottom: 8px;
+    padding: 10px;
+    background: var(--section-bg);
+    border-radius: 6px;
+  }
+  @media (max-width: 700px) {
+    .trip-row { grid-template-columns: 1fr 1fr 1fr; }
+    .trip-row > :nth-child(n+4) { /* segunda linha */ }
+  }
+  .trip-row label { font-size: 11px; }
+  .trip-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 12px 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* Section that only shows for specific modelo */
+  .section-modelo { display: none; }
+  .section-modelo.active { display: block; }
+
+  /* Tipo selector */
+  .tipo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 0;
+  }
+  @media (max-width: 500px) { .tipo-grid { grid-template-columns: 1fr; } }
+  
+  .tipo-btn {
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 12px;
+    cursor: pointer;
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    text-align: left;
+    transition: all 0.15s;
+  }
+  .tipo-btn:hover { border-color: var(--primary); background: var(--accent); }
+  .tipo-btn.selected { border-color: var(--primary); background: var(--accent); }
+  .tipo-btn .tipo-title { font-size: 13px; font-weight: 700; color: var(--primary); }
+  .tipo-btn .tipo-sub { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+  /* Warning banner for modelo5 */
+  .info-banner {
+    background: var(--yellow);
+    border: 1px solid var(--yellow-border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: var(--text);
+    margin-bottom: 14px;
+  }
+
+  /* Generate button */
+  .btn-generate {
+    width: 100%;
+    padding: 14px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-generate:hover { background: var(--primary-hover); }
+  .btn-generate:active { transform: scale(0.99); }
+  .btn-generate:disabled { opacity: 0.6; cursor: not-allowed; }
+  
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  .btn-generate.loading .spinner { display: block; }
+  .btn-generate.loading .btn-text { opacity: 0.7; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .status-msg {
+    text-align: center;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-top: 12px;
+    display: none;
+  }
+  .status-msg.success { background: #e6f7ee; color: var(--success); border: 1px solid #a3d9b8; display: block; }
+  .status-msg.error { background: #fdecea; color: var(--error); border: 1px solid #f5b7b1; display: block; }
+
+  .divider { height: 1px; background: var(--border); margin: 6px 0 16px; }
+  
+  .valor-extenso-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">📄</div>
+  <div style="flex:1">
+    <h1>Gerador de Formulários FAPESP</h1>
+    <p>Preenchimento automático de recibos e formulários de reembolso</p>
+  </div>
+  <button id="btn_google_login" onclick="loginExplicit()" style="display:none; align-items:center; gap:8px; background:white; color:#1e4d8c; border:none; border-radius:6px; padding:8px 14px; font-size:13px; font-weight:700; cursor:pointer;">
+    <svg width="16" height="16" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+    Entrar com Google
+  </button>
+</header>
+
+<div id="loading_banner" style="display:none; background:#e8effa; border-bottom:1px solid #b8cfee; padding:12px 32px; font-size:13px; color:#1e4d8c; text-align:center;"></div>
+
+<div class="container">
+
+  <!-- BLOCO A: Convênio e Outorgado -->
+  <div class="card">
+    <div class="card-title">A — Convênio e Outorgado</div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Convênio <span class="req">*</span></label>
+        <select id="sel_convenio" onchange="onConvenioChange()">
+          <option value="">Selecione o convênio…</option>
+          <option value="2021/05251-8">2021/05251-8</option>
+          <option value="2026/05010-4">2026/05010-4</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Outorgado</label>
+        <input type="text" id="out_outorgado" readonly placeholder="Preenchido automaticamente" style="background:var(--section-bg)">
+      </div>
+    </div>
+    <div class="form-row cols-1">
+      <div class="field-group">
+        <label>Interveniente</label>
+        <input type="text" id="out_interveniente" value="FUNCAMP" readonly style="background:var(--section-bg)">
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOCO B: Tipo de Operação -->
+  <div class="card">
+    <div class="card-title">B — Tipo de Operação</div>
+    <div class="tipo-grid">
+      <button class="tipo-btn" onclick="selectTipo('modelo1')" id="btn_modelo1">
+        <div class="tipo-title">Reembolso de Despesa</div>
+        <div class="tipo-sub">Modelo 1 — Visitantes e Terceiros</div>
+      </button>
+      <button class="tipo-btn" onclick="selectTipo('modelo3')" id="btn_modelo3">
+        <div class="tipo-title">Diária para o Outorgado</div>
+        <div class="tipo-sub">Modelo 3 — Pesquisador principal</div>
+      </button>
+      <button class="tipo-btn" onclick="selectTipo('modelo4')" id="btn_modelo4">
+        <div class="tipo-title">Diárias para Terceiros</div>
+        <div class="tipo-sub">Modelo 4 — Pesquisadores visitantes</div>
+      </button>
+      <button class="tipo-btn" onclick="selectTipo('modelo5')" id="btn_modelo5">
+        <div class="tipo-title">Recibo de Transporte Urbano</div>
+        <div class="tipo-sub">Modelo 5 — Metrô, trem, ônibus</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- BLOCO C: Solicitante -->
+  <div class="card">
+    <div class="card-title">C — Solicitante</div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Nome <span class="req">*</span></label>
+        <select id="sel_solicitante" onchange="onSolicitanteChange()">
+          <option value="">Selecione o solicitante…</option>
+          <option value="maria">Maria Ester Dal Poz</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>CPF</label>
+        <input type="text" id="sol_cpf" readonly style="background:var(--section-bg)">
+      </div>
+    </div>
+    <div class="form-row cols-1">
+      <div class="field-group">
+        <label>Endereço</label>
+        <input type="text" id="sol_endereco" readonly style="background:var(--section-bg)">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Complemento</label>
+        <input type="text" id="sol_complemento" readonly style="background:var(--section-bg)">
+      </div>
+      <div class="field-group">
+        <label>Bairro</label>
+        <input type="text" id="sol_bairro" readonly style="background:var(--section-bg)">
+      </div>
+    </div>
+    <div class="form-row cols-3">
+      <div class="field-group">
+        <label>Cidade</label>
+        <input type="text" id="sol_cidade" readonly style="background:var(--section-bg)">
+      </div>
+      <div class="field-group">
+        <label>Estado</label>
+        <input type="text" id="sol_estado" readonly style="background:var(--section-bg)">
+      </div>
+      <div class="field-group">
+        <label>RG</label>
+        <input type="text" id="sol_rg" readonly style="background:var(--section-bg)" placeholder="Preenchido automaticamente">
+      </div>
+    </div>
+    <div class="form-row cols-3">
+      <div class="field-group">
+        <label>Banco</label>
+        <input type="text" id="sol_banco" readonly style="background:var(--section-bg)">
+      </div>
+      <div class="field-group">
+        <label>Agência</label>
+        <input type="text" id="sol_agencia" readonly style="background:var(--section-bg)">
+      </div>
+      <div class="field-group">
+        <label>Conta Corrente</label>
+        <input type="text" id="sol_conta" readonly style="background:var(--section-bg)">
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOCO D: Dados específicos (muda conforme modelo) -->
+
+  <!-- Modelo 1: Reembolso de Despesa -->
+  <div id="sec_modelo1" class="card section-modelo">
+    <div class="card-title">D — Dados do Reembolso de Despesa (Modelo 1)</div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Valor (R$) <span class="req">*</span></label>
+        <input type="text" id="m1_valor" placeholder="Ex.: 1.500,00" oninput="updateExtenso('m1')">
+        <div class="valor-extenso-hint" id="m1_extenso_hint"></div>
+      </div>
+      <div class="field-group">
+        <label>Valor por extenso <span class="req">*</span></label>
+        <input type="text" id="m1_valorExtenso" placeholder="Ex.: um mil e quinhentos reais">
+      </div>
+    </div>
+    <div class="form-row cols-1">
+      <div class="field-group">
+        <label>Reembolso de <span class="req">*</span></label>
+        <input type="text" id="m1_reembolsoDe" placeholder="Ex.: passagem aérea São Paulo–Brasília">
+      </div>
+    </div>
+    <div class="form-row cols-1">
+      <div class="field-group">
+        <label>Com a finalidade de <span class="req">*</span></label>
+        <textarea id="m1_finalidade" rows="2" placeholder="Ex.: participação em reunião científica em Brasília, nos dias 10 e 11 de outubro de 2025"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modelo 3: Diária para o Outorgado -->
+  <div id="sec_modelo3" class="card section-modelo">
+    <div class="card-title">D — Dados de Diárias para o Outorgado (Modelo 3)</div>
+
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Valor (R$) <span class="req">*</span></label>
+        <input type="text" id="m3_valor" placeholder="Ex.: 1.500,00" oninput="updateExtenso('m3')">
+        <div class="valor-extenso-hint" id="m3_extenso_hint"></div>
+      </div>
+      <div class="field-group">
+        <label>Valor por extenso <span class="req">*</span></label>
+        <input type="text" id="m3_valorExtenso" placeholder="Ex.: um mil e quinhentos reais">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Início do período <span class="req">*</span></label>
+        <input type="date" id="m3_periodoInicio">
+      </div>
+      <div class="field-group">
+        <label>Fim do período <span class="req">*</span></label>
+        <input type="date" id="m3_periodoFim">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Nº de diárias e valor unitário</label>
+        <input type="text" id="m3_diarias" placeholder="Ex.: 5 diárias × R$ 300,00">
+      </div>
+      <div class="field-group">
+        <label>Cotação do dólar (se houver)</label>
+        <input type="text" id="m3_cambio" placeholder="Ex.: 5,25">
+      </div>
+    </div>
+    <div class="form-row cols-1">
+      <div class="field-group">
+        <label>Período de manutenção (se houver)</label>
+        <input type="text" id="m3_manutencao" placeholder="Ex.: 2 meses × R$ 3.000,00">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>RG do Outorgado</label>
+        <input type="text" id="m3_rg" placeholder="Nº do documento de identidade do outorgado">
+      </div>
+      <div class="field-group">
+        <label>Residente fiscal em</label>
+        <input type="text" id="m3_residenteFiscal" placeholder="Brasil" value="Brasil">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="card-title" style="margin-bottom:10px">Roteiro de Viagem</div>
+
+    <div class="trip-label">↗ Ida</div>
+    <div class="trip-row">
+      <div><label>Data de saída</label><input type="date" id="m3_t1_sd"></div>
+      <div><label>Hora</label><input type="time" id="m3_t1_sh"></div>
+      <div><label>Local de saída</label><input type="text" id="m3_t1_sl" placeholder="Campinas"></div>
+      <div><label>Data de chegada</label><input type="date" id="m3_t1_cd"></div>
+      <div><label>Hora</label><input type="time" id="m3_t1_ch"></div>
+      <div><label>Local de chegada</label><input type="text" id="m3_t1_cl" placeholder="Brasília"></div>
+    </div>
+    <div class="trip-label">↙ Volta</div>
+    <div class="trip-row">
+      <div><label>Data de saída</label><input type="date" id="m3_t2_sd"></div>
+      <div><label>Hora</label><input type="time" id="m3_t2_sh"></div>
+      <div><label>Local de saída</label><input type="text" id="m3_t2_sl" placeholder="Brasília"></div>
+      <div><label>Data de chegada</label><input type="date" id="m3_t2_cd"></div>
+      <div><label>Hora</label><input type="time" id="m3_t2_ch"></div>
+      <div><label>Local de chegada</label><input type="text" id="m3_t2_cl" placeholder="Campinas"></div>
+    </div>
+  </div>
+
+  <!-- Modelo 4: Diárias para Terceiros -->
+  <div id="sec_modelo4" class="card section-modelo">
+    <div class="card-title">D — Dados de Diárias para Terceiros (Modelo 4)</div>
+
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Valor (R$) <span class="req">*</span></label>
+        <input type="text" id="m4_valor" placeholder="Ex.: 1.500,00" oninput="updateExtenso('m4')">
+        <div class="valor-extenso-hint" id="m4_extenso_hint"></div>
+      </div>
+      <div class="field-group">
+        <label>Valor por extenso <span class="req">*</span></label>
+        <input type="text" id="m4_valorExtenso" placeholder="Ex.: um mil e quinhentos reais">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Início do período <span class="req">*</span></label>
+        <input type="date" id="m4_periodoInicio">
+      </div>
+      <div class="field-group">
+        <label>Fim do período <span class="req">*</span></label>
+        <input type="date" id="m4_periodoFim">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Nº de diárias e valor unitário</label>
+        <input type="text" id="m4_diarias" placeholder="Ex.: 5 diárias × R$ 300,00">
+      </div>
+      <div class="field-group">
+        <label>Cotação do dólar (se houver)</label>
+        <input type="text" id="m4_cambio" placeholder="Ex.: 5,25">
+      </div>
+    </div>
+    <div class="form-row cols-1">
+      <div class="field-group">
+        <label>Período de manutenção (se houver)</label>
+        <input type="text" id="m4_manutencao" placeholder="Ex.: 2 meses × R$ 3.000,00">
+      </div>
+    </div>
+    <div class="form-row cols-1">
+      <div class="field-group">
+        <label>Residente fiscal em</label>
+        <input type="text" id="m4_residenteFiscal" placeholder="Brasil" value="Brasil">
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div class="card-title" style="margin-bottom:10px">Roteiro de Viagem</div>
+
+    <div class="trip-label">↗ Ida</div>
+    <div class="trip-row">
+      <div><label>Data de saída</label><input type="date" id="m4_t1_sd"></div>
+      <div><label>Hora</label><input type="time" id="m4_t1_sh"></div>
+      <div><label>Local de saída</label><input type="text" id="m4_t1_sl" placeholder="Campinas"></div>
+      <div><label>Data de chegada</label><input type="date" id="m4_t1_cd"></div>
+      <div><label>Hora</label><input type="time" id="m4_t1_ch"></div>
+      <div><label>Local de chegada</label><input type="text" id="m4_t1_cl" placeholder="Brasília"></div>
+    </div>
+    <div class="trip-label">↙ Volta</div>
+    <div class="trip-row">
+      <div><label>Data de saída</label><input type="date" id="m4_t2_sd"></div>
+      <div><label>Hora</label><input type="time" id="m4_t2_sh"></div>
+      <div><label>Local de saída</label><input type="text" id="m4_t2_sl" placeholder="Brasília"></div>
+      <div><label>Data de chegada</label><input type="date" id="m4_t2_cd"></div>
+      <div><label>Hora</label><input type="time" id="m4_t2_ch"></div>
+      <div><label>Local de chegada</label><input type="text" id="m4_t2_cl" placeholder="Campinas"></div>
+    </div>
+  </div>
+
+  <!-- Modelo 5: Transporte Urbano -->
+  <div id="sec_modelo5" class="card section-modelo">
+    <div class="card-title">D — Dados do Recibo de Transporte Urbano (Modelo 5)</div>
+    <div class="info-banner">
+      ℹ️ Os detalhes das viagens (meio de transporte, valor e quantidade) ficam destacados em <strong>amarelo</strong> no documento Word para preenchimento direto.
+    </div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Valor total (R$) <span class="req">*</span></label>
+        <input type="text" id="m5_valor" placeholder="Ex.: 45,00" oninput="updateExtenso('m5')">
+        <div class="valor-extenso-hint" id="m5_extenso_hint"></div>
+      </div>
+      <div class="field-group">
+        <label>Valor por extenso <span class="req">*</span></label>
+        <input type="text" id="m5_valorExtenso" placeholder="Ex.: quarenta e cinco reais">
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="card-title" style="margin-bottom:10px">Viagem 1</div>
+    <div class="form-row cols-1">
+      <div class="field-group">
+        <label>Trajeto realizado</label>
+        <input type="text" id="m5_v1_traj" placeholder="Ex.: Campinas → São Paulo (Consolação)">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Datas</label>
+        <input type="text" id="m5_v1_datas" placeholder="Ex.: 01/10 a 05/10/2025">
+      </div>
+      <div class="field-group">
+        <label>Quantidade de viagens</label>
+        <input type="text" id="m5_v1_qtd" placeholder="Ex.: 10">
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="card-title" style="margin-bottom:10px">Viagem 2 (opcional)</div>
+    <div class="form-row cols-1">
+      <div class="field-group">
+        <label>Trajeto realizado</label>
+        <input type="text" id="m5_v2_traj" placeholder="Deixe em branco se não houver">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Datas</label>
+        <input type="text" id="m5_v2_datas" placeholder="">
+      </div>
+      <div class="field-group">
+        <label>Quantidade de viagens</label>
+        <input type="text" id="m5_v2_qtd" placeholder="">
+      </div>
+    </div>
+  </div>
+
+  <!-- Generate Button -->
+  <div class="card">
+    <button class="btn-generate" id="btn_generate" onclick="generateDocument()">
+      <div class="spinner" id="spinner"></div>
+      <span class="btn-text">⬇ Gerar Documento Word (.docx)</span>
+    </button>
+    <div class="status-msg" id="status_msg"></div>
+  </div>
+
+</div>
+
+<script>
+// =====================================================
+// CONFIG
+// =====================================================
+const GOOGLE_CLIENT_ID  = '61308368694-jf0pmq9d1inlcjqiaduvkrgpk1d6mj6u.apps.googleusercontent.com';
+const SPREADSHEET_ID    = '1D8lYmRR5YtTGO34O_9kV3IPh0jnRpx874myAAWoF9FE';
+const SCOPES            = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+
+// GIDs das abas (fixos)
+const GID_SOLICITANTES  = '0';               // aba DadosFormulário
+const GID_OUTORGADOS    = '1386270009';       // aba Outorgados
+
+// =====================================================
+// ESTADO GLOBAL
+// =====================================================
+let CONVENIOS     = {};
+let SOLICITANTES  = {};
+let selectedModelo = null;
+let accessToken   = null;
+
+// =====================================================
+// UI HELPERS
+// =====================================================
+function setBanner(msg, type) {
+  // type: '' | 'loading' | 'error' | 'ok'
+  const el = document.getElementById('loading_banner');
+  if (!msg) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  const colors = {
+    loading: { bg:'#e8effa', border:'#b8cfee', color:'#1e4d8c' },
+    error:   { bg:'#fdecea', border:'#f5b7b1', color:'#c0392b' },
+    ok:      { bg:'#e6f7ee', border:'#a3d9b8', color:'#1a7f4b' },
+  };
+  const c = colors[type] || colors.loading;
+  Object.assign(el.style, { background:c.bg, borderBottomColor:c.border, color:c.color });
+  el.textContent = msg;
+}
+
+function setFormEnabled(enabled) {
+  ['sel_convenio','sel_solicitante','btn_generate'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !enabled;
+  });
+  document.querySelectorAll('.tipo-btn').forEach(b => b.disabled = !enabled);
+}
+
+// =====================================================
+// GOOGLE IDENTITY SERVICES — login silencioso
+// =====================================================
+function initGoogleAuth() {
+  setBanner('🔄 Autenticando com o Google…', 'loading');
+  setFormEnabled(false);
+
+  // Carrega a lib do Google Identity Services
+  const s = document.createElement('script');
+  s.src = 'https://accounts.google.com/gsi/client';
+  s.onload = () => {
+    google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: SCOPES,
+      callback: onTokenReceived,
+      error_callback: onAuthError,
+    }).requestAccessToken({ prompt: '' }); // prompt vazio = silencioso se já autorizado
+  };
+  s.onerror = () => setBanner('⚠️ Não foi possível carregar a autenticação Google. Verifique sua conexão.', 'error');
+  document.head.appendChild(s);
+}
+
+function onTokenReceived(resp) {
+  if (resp.error) { onAuthError(resp); return; }
+  accessToken = resp.access_token;
+  loadSheetData();
+}
+
+function onAuthError(err) {
+  console.warn('Auth error:', err);
+  setBanner('⚠️ Faça login com sua conta Google para usar o formulário.', 'error');
+  // Mostra botão de login explícito
+  document.getElementById('btn_google_login').style.display = 'inline-flex';
+}
+
+function loginExplicit() {
+  document.getElementById('btn_google_login').style.display = 'none';
+  setBanner('🔄 Aguardando login…', 'loading');
+  google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: SCOPES,
+    callback: onTokenReceived,
+    error_callback: onAuthError,
+  }).requestAccessToken({ prompt: 'select_account' });
+}
+
+// =====================================================
+// GOOGLE SHEETS API — leitura das duas abas via CSV
+// =====================================================
+async function fetchSheetCSV(gid) {
+  const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${gid}`;
+  const resp = await fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  if (resp.status === 403) throw Object.assign(new Error('sem_permissao'), { code: 403 });
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.text();
+}
+
+async function loadSheetData() {
+  setBanner('🔄 Carregando dados da planilha…', 'loading');
+  try {
+    const [csvSol, csvOut] = await Promise.all([
+      fetchSheetCSV(GID_SOLICITANTES),
+      fetchSheetCSV(GID_OUTORGADOS),
+    ]);
+
+    // Parseia Solicitantes
+    SOLICITANTES = {};
+    parseCSV(csvSol).forEach(row => {
+      const nome = row['Nome'] || '';
+      if (!nome) return;
+      const key = nome.toLowerCase().replace(/\s+/g,'_');
+      SOLICITANTES[key] = {
+        nome,
+        rg:           row['RG'] || '',
+        cpf:          fmtCPF(row['CPF'] || ''),
+        endereco:     row['Rua e numero'] || '',
+        complemento:  row['Complemento'] || '',
+        bairro:       row['Bairro'] || '',
+        cidade:       row['Cidade'] || '',
+        estado:       row['Estado'] || '',
+        banco:        row['Banco'] || '',
+        agencia:      row['Agencia'] || '',
+        conta:        row['Conta'] || '',
+        residenteFiscal: row['Residente Fiscal'] || 'Brasil',
+      };
+    });
+
+    // Parseia Outorgados/Convênios
+    CONVENIOS = {};
+    parseCSV(csvOut).forEach(row => {
+      const conv = row['Convenio'] || '';
+      const out  = row['Outorgado'] || '';
+      if (conv && out) CONVENIOS[conv] = out;
+    });
+
+    populateSelects();
+    setFormEnabled(true);
+    setBanner('');
+  } catch(e) {
+    console.error('Erro ao carregar planilha:', e);
+    if (e.code === 403) {
+      setBanner('⚠️ Você não tem permissão para acessar a planilha. Solicite acesso ao responsável.', 'error');
+    } else {
+      setBanner('⚠️ Erro ao carregar dados da planilha. Recarregue a página.', 'error');
+    }
+  }
+}
+
+// =====================================================
+// CSV PARSER
+// =====================================================
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = splitLine(lines[0]);
+  return lines.slice(1).map(line => {
+    const vals = splitLine(line);
+    const obj = {};
+    headers.forEach((h, i) => { obj[h.trim()] = (vals[i] || '').trim(); });
+    return obj;
+  });
+}
+function splitLine(line) {
+  const r = []; let cur = '', inQ = false;
+  for (const c of line) {
+    if (c === '"') inQ = !inQ;
+    else if (c === ',' && !inQ) { r.push(cur); cur = ''; }
+    else cur += c;
+  }
+  r.push(cur);
+  return r;
+}
+
+// =====================================================
+// UTILS
+// =====================================================
+function fmtCPF(v) {
+  const d = (v||'').replace(/\D/g,'');
+  if (d.length !== 11) return v;
+  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+}
+
+function populateSelects() {
+  const selConv = document.getElementById('sel_convenio');
+  selConv.innerHTML = '<option value="">Selecione o convênio…</option>';
+  Object.entries(CONVENIOS).forEach(([conv]) => {
+    const o = document.createElement('option');
+    o.value = o.textContent = conv;
+    selConv.appendChild(o);
+  });
+
+  const selSol = document.getElementById('sel_solicitante');
+  selSol.innerHTML = '<option value="">Selecione o solicitante…</option>';
+  Object.entries(SOLICITANTES).forEach(([key, s]) => {
+    const o = document.createElement('option');
+    o.value = key; o.textContent = s.nome;
+    selSol.appendChild(o);
+  });
+}
+
+// Inicia ao carregar a página
+window.addEventListener('DOMContentLoaded', () => {
+  setFormEnabled(false);
+  initGoogleAuth();
+});
+
+// =====================================================
+// FORM HANDLERS
+// =====================================================
+function onConvenioChange() {
+  const v = document.getElementById('sel_convenio').value;
+  document.getElementById('out_outorgado').value = CONVENIOS[v] || '';
+}
+function onSolicitanteChange() {
+  const v = document.getElementById('sel_solicitante').value;
+  const s = SOLICITANTES[v] || {};
+  ['cpf','rg','endereco','complemento','bairro','cidade','estado','banco','agencia','conta'].forEach(k => {
+    const el = document.getElementById('sol_' + k);
+    if (el) el.value = s[k] || '';
+  });
+}
+function selectTipo(modelo) {
+  selectedModelo = modelo;
+  ['modelo1','modelo3','modelo4','modelo5'].forEach(m => {
+    document.getElementById('btn_' + m).classList.toggle('selected', m === modelo);
+    document.getElementById('sec_' + m).classList.toggle('active', m === modelo);
+  });
+}
+
+// Valor por extenso (Portuguese)
+function valorPorExtenso(valor) {
+  try {
+    const s = valor.replace(/\./g,'').replace(',','.');
+    const n = parseFloat(s);
+    if (isNaN(n) || n <= 0) return '';
+    const intPart = Math.floor(n);
+    const cents = Math.round((n - intPart) * 100);
+    let result = numToWords(intPart);
+    if (intPart === 1) result += ' real';
+    else result += ' reais';
+    if (cents > 0) {
+      result += ' e ' + numToWords(cents);
+      if (cents === 1) result += ' centavo';
+      else result += ' centavos';
+    }
+    return result;
+  } catch { return ''; }
+}
+
+function numToWords(n) {
+  if (n === 0) return 'zero';
+  const ones = ['','um','dois','três','quatro','cinco','seis','sete','oito','nove',
+    'dez','onze','doze','treze','quatorze','quinze','dezesseis','dezessete','dezoito','dezenove'];
+  const tens = ['','','vinte','trinta','quarenta','cinquenta','sessenta','setenta','oitenta','noventa'];
+  const hundreds = ['','cem','duzentos','trezentos','quatrocentos','quinhentos','seiscentos','setecentos','oitocentos','novecentos'];
+  if (n < 20) return ones[n];
+  if (n < 100) return tens[Math.floor(n/10)] + (n%10 ? ' e ' + ones[n%10] : '');
+  if (n === 100) return 'cem';
+  if (n < 1000) {
+    const h = Math.floor(n/100);
+    const r = n % 100;
+    return (h === 1 ? 'cento' : hundreds[h]) + (r ? ' e ' + numToWords(r) : '');
+  }
+  if (n < 1000000) {
+    const t = Math.floor(n/1000);
+    const r = n % 1000;
+    const tWord = t === 1 ? 'mil' : numToWords(t) + ' mil';
+    return tWord + (r ? ' e ' + numToWords(r) : '');
+  }
+  return n.toString();
+}
+
+function updateExtenso(prefix) {
+  const val = document.getElementById(prefix + '_valor').value;
+  const ext = valorPorExtenso(val);
+  const hint = document.getElementById(prefix + '_extenso_hint');
+  const extInput = document.getElementById(prefix + '_valorExtenso');
+  if (ext) {
+    hint.textContent = ext;
+    if (!extInput.value || extInput.dataset.auto === '1') {
+      extInput.value = ext;
+      extInput.dataset.auto = '1';
+    }
+  } else {
+    hint.textContent = '';
+  }
+}
+
+// Listen for manual edits to extenso fields
+['m1','m3','m4','m5'].forEach(p => {
+  const el = document.getElementById(p + '_valorExtenso');
+  if (el) el.addEventListener('input', () => { el.dataset.auto = '0'; });
+});
+
+function fmtDate(d) {
+  if (!d) return '';
+  const [y,m,dd] = d.split('-');
+  return `${dd}/${m}/${y}`;
+}
+function fmtTime(t) { return t || ''; }
+
+// =====================================================
+// DOCX XML GENERATOR
+// =====================================================
+
+const NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function run(text, opts={}) {
+  const rpr = opts.bold ? '<w:rPr><w:b/><w:bCs/></w:rPr>' : '';
+  return `<w:r>${rpr}<w:t xml:space="preserve">${esc(text)}</w:t></w:r>`;
+}
+function brun(text) { return run(text, {bold:true}); }
+
+function para(runs, opts={}) {
+  let ppr = '';
+  if (opts.center) ppr = '<w:pPr><w:jc w:val="center"/></w:pPr>';
+  if (opts.bold_center) ppr = '<w:pPr><w:jc w:val="center"/></w:pPr>';
+  return `<w:p>${ppr}${runs}</w:p>`;
+}
+function blank() { return '<w:p><w:pPr></w:pPr></w:p>'; }
+
+const BORDER_ATTRS = 'w:val="single" w:sz="4" w:space="0" w:color="000000"';
+function cell(innerXml, opts={}) {
+  const span = opts.span > 1 ? `<w:gridSpan w:val="${opts.span}"/>` : '';
+  const shading = opts.fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${opts.fill}"/>` : '';
+  const borders = `<w:tcBorders>
+    <w:top ${BORDER_ATTRS}/><w:left ${BORDER_ATTRS}/>
+    <w:bottom ${BORDER_ATTRS}/><w:right ${BORDER_ATTRS}/>
+  </w:tcBorders>`;
+  const width = opts.w ? `<w:tcW w:w="${Math.round(opts.w)}" w:type="dxa"/>` : '';
+  return `<w:tc><w:tcPr>${width}${span}${borders}${shading}</w:tcPr>${innerXml}</w:tc>`;
+}
+function pCell(runs, opts={}) { return cell(para(runs), opts); }
+
+function tblXml(colWidths, rowsXml) {
+  const totalW = colWidths.reduce((a,b)=>a+b,0);
+  const gridCols = colWidths.map(w=>`<w:gridCol w:w="${Math.round(w)}"/>`).join('');
+  return `<w:tbl>
+    <w:tblPr>
+      <w:tblW w:w="${totalW}" w:type="dxa"/>
+      <w:tblBorders>
+        <w:insideH ${BORDER_ATTRS}/><w:insideV ${BORDER_ATTRS}/>
+      </w:tblBorders>
+    </w:tblPr>
+    <w:tblGrid>${gridCols}</w:tblGrid>
+    ${rowsXml}
+  </w:tbl>`;
+}
+function row(cellsXml, opts={}) {
+  const rpr = opts.height ? `<w:trPr><w:trHeight w:val="${opts.height}" w:hRule="atLeast"/></w:trPr>` : '';
+  return `<w:tr>${rpr}${cellsXml}</w:tr>`;
+}
+
+const W = 9072;
+
+// Single-column table row
+function row1(runs, w, opts={}) {
+  return row(pCell(runs, {w, span:1}));
+}
+// Two-column table row
+function row2(rl, rr) {
+  return row(pCell(rl, {w:W/2}) + pCell(rr, {w:W/2}));
+}
+
+function bankRows(d) {
+  return tblXml([W], [row1(brun('Banco: ') + run(d.banco), W)]) +
+    tblXml([W/2,W/2], [row2(brun('Agência: ') + run(d.agencia), brun('Conta Corrente: ') + run(d.conta))]);
+}
+
+function tripTableXml(trips) {
+  const w6 = W/6;
+  const hdRow = row(
+    cell(para(brun('SAÍDA:')), {w:W/2, span:3}) +
+    cell(para(brun('CHEGADA:')), {w:W/2, span:3})
+  );
+  const hRow = row(
+    pCell(brun('Data'),{w:w6}) + pCell(brun('Hora'),{w:w6}) + pCell(brun('Localidade'),{w:w6}) +
+    pCell(brun('Data'),{w:w6}) + pCell(brun('Hora'),{w:w6}) + pCell(brun('Localidade'),{w:w6})
+  );
+  const dataRows = [];
+  for (let i = 0; i < 3; i++) {
+    const t = trips[i] || {};
+    dataRows.push(row(
+      pCell(run(t.saida_data||''),{w:w6}) + pCell(run(t.saida_hora||''),{w:w6}) + pCell(run(t.saida_local||''),{w:w6}) +
+      pCell(run(t.chegada_data||''),{w:w6}) + pCell(run(t.chegada_hora||''),{w:w6}) + pCell(run(t.chegada_local||''),{w:w6})
+    , {height:500}));
+  }
+  return tblXml([w6,w6,w6,w6,w6,w6].map(Math.round), hdRow + hRow + dataRows.join(''));
+}
+
+function diariaFieldsXml(d) {
+  return tblXml([W], [
+    row1(run(`Nº de diárias utilizadas/valor unitário: ${d.diarias||''}`), W),
+    row1(run(`Período de manutenção utilizado/valor por mês: ${d.manutencao||''}`), W),
+    row1(run(`Câmbio utilizado (para diárias ou manutenção mensal no exterior): 1 U$$ = R$ ${d.cambio||''}`), W),
+  ].join(''));
+}
+
+const OBS_TEXT = 'Observações: 1. Na ausência de passagem que comprove a realização da viagem no período e roteiro indicado acima, apresentar comprovante de afastamento da Instituição, declaração da instituição visitada, certificado de participação em reunião científica, ou outro documento, em que conste o período e o local do evento/visita. 2. Anexar o comprovante da taxa de câmbio utilizada na conversão da despesa em moeda estrangeira.';
+
+function sigRow2(label1, label2) {
+  return tblXml([W/2,W/2].map(Math.round), [
+    row2(brun('Local e Data: '), brun('Local e Data: ')),
+    row(pCell(run(label1),{w:W/2}) + pCell(run(label2),{w:W/2}), {height:1200}),
+  ].join(''));
+}
+function sigRow1(label) {
+  return tblXml([W], [
+    row1(brun('Local e Data: '), W),
+    row(pCell(run(label),{w:W}), {height:1200}),
+  ].join(''));
+}
+
+function commonPersonBlock(d) {
+  return tblXml([W/2,W/2].map(Math.round), [
+    row2(run('Nº documento de Identidade: ') + run(d.rg), run('Nº do CPF: ') + run(d.cpf)),
+  ].join('')) +
+  tblXml([W], [row1(run('Endereço (Logradouro e número): ') + run(d.endereco), W)].join('')) +
+  tblXml([W/2,W/2].map(Math.round), [
+    row2(run('Complemento: ') + run(d.complemento), run('Bairro: ') + run(d.bairro)),
+    row2(run('Cidade: ') + run(d.cidade), run('Estado: ') + run(d.estado)),
+  ].join(''));
+}
+
+function buildModelo1Xml(d) {
+  return [
+    para(brun('MODELO 1 - RECIBO DE REEMBOLSO'), {center:true}),
+    para(run('Recibo de reembolso de recursos a pesquisadores visitantes e a terceiros.'), {center:true}),
+    blank(),
+    tblXml([W], [
+      row1(brun('Processo nº: ') + run(d.processo), W),
+      row1(brun('Outorgado(a): ') + run(d.outorgado), W),
+      row1(brun('Interveniente (se houver): ') + run(d.interveniente), W),
+    ].join('')),
+    blank(),
+    tblXml([W], [
+      row1(brun('Recibo: R$ ') + run(d.valor), W),
+      row1(run(`Recebi do Outorgado ou Interveniente acima identificado(a) a importância de R$ ${d.valor} (${d.valorExtenso}), referente ao reembolso de ${d.reembolsoDe}, com a finalidade de ${d.finalidade}.`), W),
+      row1(brun('Nome do Visitante ou Terceiro: ') + run(d.nome), W),
+    ].join('')),
+    commonPersonBlock(d),
+    blank(),
+    para(brun('DADOS PARA REEMBOLSO:')),
+    bankRows(d),
+    blank(),
+    sigRow2('Assinatura do Visitante/Terceiro', 'Assinatura do Outorgado'),
+    blank(),
+    para(run('FAPESP, outubro de 2025.')),
+  ].join('');
+}
+
+function buildModelo3Xml(d) {
+  return [
+    para(brun('MODELO 3 - RECIBO DE DIÁRIAS/MANUTENÇÃO PARA O OUTORGADO'), {center:true}),
+    blank(),
+    tblXml([W], [
+      row1(brun('Processo nº: ') + run(d.processo), W),
+      row1(brun('Outorgado: ') + run(d.outorgado), W),
+    ].join('')),
+    tblXml([W/2,W/2].map(Math.round), [
+      row2(run('Nº documento de Identidade: ') + run(d.rg), run('Nº do CPF: ') + run(d.cpf)),
+    ].join('')),
+    tblXml([W], [
+      row1(run('Endereço (Logradouro e nº): ') + run(d.endereco), W),
+    ].join('')),
+    tblXml([W/2,W/2].map(Math.round), [
+      row2(run('Complemento: ') + run(d.complemento), run('Bairro: ') + run(d.bairro)),
+      row2(run('Cidade: ') + run(d.cidade), run('Estado: ') + run(d.estado)),
+    ].join('')),
+    tblXml([W], [
+      row1(run('Favorecido é residente fiscal em qual país? ') + run(d.residenteFiscal||'Brasil'), W),
+    ].join('')),
+    blank(),
+    tblXml([W], [
+      row1(brun('Recibo: R$ ') + run(d.valor), W),
+      row1(run(`Recebi a importância de R$ ${d.valor} (${d.valorExtenso}), referente à utilização de manutenção/diárias entre o período de ${d.periodoInicio} a ${d.periodoFim}, para o desenvolvimento de atividades de pesquisa, conforme roteiro de viagem indicado abaixo.`), W),
+    ].join('')),
+    blank(),
+    para(brun('ROTEIRO DE VIAGEM PARA COMPROVAÇÃO DE DIÁRIAS:')),
+    tripTableXml(d.trips||[]),
+    blank(),
+    diariaFieldsXml(d),
+    blank(),
+    para(brun('DADOS PARA REEMBOLSO:')),
+    bankRows(d),
+    blank(),
+    para(run(OBS_TEXT)),
+    blank(),
+    sigRow1('Assinatura do Outorgado'),
+    blank(),
+    para(run('FAPESP, outubro de 2025.')),
+  ].join('');
+}
+
+function buildModelo4Xml(d) {
+  return [
+    para(brun('MODELO 4 - RECIBO DE DIÁRIAS/MANUTENÇÃO PARA PESQUISADORES VISITANTES E TERCEIROS'), {center:true}),
+    blank(),
+    tblXml([W], [
+      row1(brun('Processo nº: ') + run(d.processo), W),
+      row1(brun('Outorgado: ') + run(d.outorgado), W),
+      row1(brun('Interveniente (se houver): ') + run(d.interveniente), W),
+    ].join('')),
+    blank(),
+    tblXml([W], [
+      row1(brun('Recibo: R$ ') + run(d.valor), W),
+      row1(run(`Recebi do Outorgado ou Interveniente acima identificado(a) a importância de R$ ${d.valor} (${d.valorExtenso}), referente à utilização de manutenção/diárias entre o período de ${d.periodoInicio} a ${d.periodoFim}, para o desenvolvimento de atividades de pesquisa, conforme roteiro de viagem indicado abaixo.`), W),
+      row1(run('Nome do Visitante ou Terceiro: ') + run(d.nome), W),
+    ].join('')),
+    tblXml([W/2,W/2].map(Math.round), [
+      row2(run('Nº documento de Identidade: ') + run(d.rg), run('Nº do CPF: ') + run(d.cpf)),
+    ].join('')),
+    tblXml([W], [
+      row1(run('Endereço (Logradouro e nº): ') + run(d.endereco), W),
+    ].join('')),
+    tblXml([W/2,W/2].map(Math.round), [
+      row2(run('Complemento: ') + run(d.complemento), run('Bairro: ') + run(d.bairro)),
+      row2(run('Cidade: ') + run(d.cidade), run('Estado: ') + run(d.estado)),
+    ].join('')),
+    tblXml([W], [
+      row1(run('Favorecido é residente fiscal em qual país? ') + run(d.residenteFiscal||'Brasil'), W),
+    ].join('')),
+    blank(),
+    para(brun('ROTEIRO DE VIAGEM PARA COMPROVAÇÃO DE DIÁRIAS:')),
+    tripTableXml(d.trips||[]),
+    blank(),
+    diariaFieldsXml(d),
+    blank(),
+    para(brun('DADOS PARA REEMBOLSO:')),
+    bankRows(d),
+    blank(),
+    para(run(OBS_TEXT)),
+    blank(),
+    sigRow2('Assinatura do Visitante/Terceiro', 'Assinatura do Outorgado'),
+    blank(),
+    para(run('FAPESP, outubro de 2025.')),
+  ].join('');
+}
+
+function buildModelo5Xml(d) {
+  const YELLOW = 'FFFF00';
+  const cw = [Math.round(W*0.35),Math.round(W*0.25),Math.round(W*0.2),Math.round(W*0.2)];
+  const cwTotal = cw.reduce((a,b)=>a+b,0);
+
+  function tripSection(num, traj, datas, qtd) {
+    return [
+      row(cell(para(brun(`Viagem ${num} - Trajeto realizado: `) + run(traj||'')), {w:cwTotal, span:4, fill:YELLOW})),
+      row(
+        cell(para(run(`Quantidade de viagens: `) + run(qtd||'')), {w:cw[0]+cw[1], span:2, fill:YELLOW}) +
+        cell(para(run(`Datas: `) + run(datas||'')), {w:cw[2]+cw[3], span:2, fill:YELLOW})
+      ),
+      row(pCell(brun('Meio de Transporte'),{w:cw[0]}) + pCell(brun('Valor da Tarifa (R$)'),{w:cw[1]}) + pCell(brun('Quantidade'),{w:cw[2]}) + pCell(brun('Total (R$)'),{w:cw[3]})),
+      row(pCell(run(''),{w:cw[0],fill:YELLOW}) + pCell(run(''),{w:cw[1],fill:YELLOW}) + pCell(run(''),{w:cw[2],fill:YELLOW}) + pCell(run(''),{w:cw[3],fill:YELLOW}), {height:400}),
+      row(pCell(run(''),{w:cw[0],fill:YELLOW}) + pCell(run(''),{w:cw[1],fill:YELLOW}) + pCell(run(''),{w:cw[2],fill:YELLOW}) + pCell(run(''),{w:cw[3],fill:YELLOW}), {height:400}),
+      row(pCell(run(''),{w:cw[0],fill:YELLOW}) + pCell(run(''),{w:cw[1],fill:YELLOW}) + pCell(run(''),{w:cw[2],fill:YELLOW}) + pCell(run(''),{w:cw[3],fill:YELLOW}), {height:400}),
+    ].join('');
+  }
+
+  return [
+    para(brun('MODELO 5 - RECIBO DE TRANSPORTE URBANO'), {center:true}),
+    para(run('(Metrô, Trem, Ônibus)'), {center:true}),
+    blank(),
+    tblXml([W], [
+      row1(brun('Processo nº: ') + run(d.processo), W),
+      row1(brun('Outorgado(a): ') + run(d.outorgado), W),
+      row1(brun('Interveniente (se houver): ') + run(d.interveniente), W),
+    ].join('')),
+    blank(),
+    tblXml([W], [
+      row1(brun('Recibo: R$ ') + run(d.valor), W),
+      row1(run(`Recebi do Outorgado ou Interveniente acima identificado(a) a importância de R$ ${d.valor} (${d.valorExtenso}), referente a despesas com utilização de transporte urbano, conforme roteiro indicado abaixo.`), W),
+    ].join('')),
+    blank(),
+    para(brun('DADOS DO PASSAGEIRO:')),
+    tblXml([W], [
+      row1(run('Nome: ') + run(d.nome), W),
+    ].join('')),
+    tblXml([W/2,W/2].map(Math.round), [
+      row2(run('Nº documento de Identidade: ') + run(d.rg), run('Nº do CPF: ') + run(d.cpf)),
+    ].join('')),
+    tblXml([W], [
+      row1(run('Endereço (Logradouro e nº): ') + run(d.endereco), W),
+    ].join('')),
+    tblXml([W/2,W/2].map(Math.round), [
+      row2(run('Complemento: ') + run(d.complemento), run('Bairro: ') + run(d.bairro)),
+      row2(run('Cidade: ') + run(d.cidade), run('Estado: ') + run(d.estado)),
+    ].join('')),
+    blank(),
+    para(brun('ROTEIRO DE UTILIZAÇÃO DE TRANSPORTE URBANO:')),
+    tblXml(cw, tripSection(1, d.viagem1_trajeto, d.viagem1_datas, d.viagem1_qtd) +
+                tripSection(2, d.viagem2_trajeto, d.viagem2_datas, d.viagem2_qtd)),
+    blank(),
+    para(brun('DADOS PARA REEMBOLSO:')),
+    bankRows(d),
+    blank(),
+    tblXml([W/2,W/2].map(Math.round), [
+      row2(brun('Local e Data: '), run('')),
+      row(pCell(run('Assinatura do Passageiro'),{w:W/2}) + pCell(run('Assinatura do Outorgado ou Interveniente'),{w:W/2}), {height:1200}),
+    ].join('')),
+    blank(),
+    para(run('FAPESP, outubro de 2025.')),
+  ].join('');
+}
+
+// =====================================================
+// DOCX BUILDER (JSZip)
+// =====================================================
+
+const RELS_ROOT = `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`;
+
+const RELS_WORD = `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
+</Relationships>`;
+
+const CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default ContentType="application/vnd.openxmlformats-package.relationships+xml" Extension="rels"/>
+  <Default ContentType="application/xml" Extension="xml"/>
+  <Override ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml" PartName="/word/document.xml"/>
+  <Override ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml" PartName="/word/styles.xml"/>
+  <Override ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml" PartName="/word/settings.xml"/>
+  <Override ContentType="application/vnd.openxmlformats-package.core-properties+xml" PartName="/docProps/core.xml"/>
+  <Override ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml" PartName="/docProps/app.xml"/>
+</Types>`;
+
+const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault><w:rPr>
+      <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+      <w:sz w:val="22"/><w:szCs w:val="22"/>
+    </w:rPr></w:rPrDefault>
+    <w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault>
+  </w:docDefaults>
+</w:styles>`;
+
+const SETTINGS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:compat><w:compatSetting w:val="15" w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word"/></w:compat>
+</w:settings>`;
+
+function coreXml(title) {
+  const now = new Date().toISOString().slice(0,19) + 'Z';
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
+  xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <dc:title>${esc(title)}</dc:title>
+  <cp:lastModifiedBy>FAPESP Form Generator</cp:lastModifiedBy>
+  <cp:modified>${now}</cp:modified>
+</cp:coreProperties>`;
+}
+
+const APP_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">
+  <Application>FAPESP Form Generator</Application>
+</Properties>`;
+
+const DOC_NS = `xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"`;
+
+function wrapDocument(bodyXml) {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document ${DOC_NS}>
+<w:body>
+${bodyXml}
+<w:sectPr>
+  <w:pgSz w:w="11906" w:h="16838" w:orient="portrait"/>
+  <w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="709" w:footer="709" w:gutter="0"/>
+</w:sectPr>
+</w:body>
+</w:document>`;
+}
+
+async function buildDocx(bodyXml, title) {
+  const zip = new JSZip();
+  zip.file('[Content_Types].xml', CONTENT_TYPES);
+  zip.file('_rels/.rels', RELS_ROOT);
+  zip.file('word/document.xml', wrapDocument(bodyXml));
+  zip.file('word/styles.xml', STYLES);
+  zip.file('word/settings.xml', SETTINGS);
+  zip.file('word/_rels/document.xml.rels', RELS_WORD);
+  zip.file('docProps/core.xml', coreXml(title));
+  zip.file('docProps/app.xml', APP_XML);
+  return await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+
+// =====================================================
+// GENERATE HANDLER
+// =====================================================
+
+function getVal(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+function showStatus(msg, type) {
+  const el = document.getElementById('status_msg');
+  el.textContent = msg;
+  el.className = 'status-msg ' + type;
+}
+
+async function generateDocument() {
+  // Validate
+  if (!getVal('sel_convenio')) { showStatus('Por favor, selecione o convênio.', 'error'); return; }
+  if (!selectedModelo) { showStatus('Por favor, selecione o tipo de operação.', 'error'); return; }
+  if (!getVal('sel_solicitante')) { showStatus('Por favor, selecione o solicitante.', 'error'); return; }
+
+  const btn = document.getElementById('btn_generate');
+  btn.classList.add('loading');
+  btn.disabled = true;
+  document.getElementById('status_msg').className = 'status-msg';
+
+  try {
+    const d = {
+      processo: getVal('sel_convenio'),
+      outorgado: getVal('out_outorgado'),
+      interveniente: 'FUNCAMP',
+      nome: SOLICITANTES[getVal('sel_solicitante')]?.nome || '',
+      cpf: getVal('sol_cpf'),
+      rg: getVal('sol_rg'),
+      endereco: getVal('sol_endereco'),
+      complemento: getVal('sol_complemento'),
+      bairro: getVal('sol_bairro'),
+      cidade: getVal('sol_cidade'),
+      estado: getVal('sol_estado'),
+      banco: getVal('sol_banco'),
+      agencia: getVal('sol_agencia'),
+      conta: getVal('sol_conta'),
+    };
+
+    let bodyXml, filename, title;
+
+    if (selectedModelo === 'modelo1') {
+      d.valor = getVal('m1_valor');
+      d.valorExtenso = getVal('m1_valorExtenso');
+      d.reembolsoDe = getVal('m1_reembolsoDe');
+      d.finalidade = getVal('m1_finalidade');
+      if (!d.valor || !d.valorExtenso || !d.reembolsoDe || !d.finalidade) {
+        showStatus('Preencha todos os campos obrigatórios do Modelo 1.', 'error');
+        return;
+      }
+      bodyXml = buildModelo1Xml(d);
+      title = 'Modelo 1 - Recibo de Reembolso';
+      filename = `Modelo1_Reembolso_${d.nome.split(' ')[0]}_${d.processo.replace(/\//g,'-')}.docx`;
+
+    } else if (selectedModelo === 'modelo3') {
+      d.valor = getVal('m3_valor');
+      d.valorExtenso = getVal('m3_valorExtenso');
+      d.periodoInicio = fmtDate(getVal('m3_periodoInicio'));
+      d.periodoFim = fmtDate(getVal('m3_periodoFim'));
+      d.diarias = getVal('m3_diarias');
+      d.manutencao = getVal('m3_manutencao');
+      d.cambio = getVal('m3_cambio');
+      d.rg = getVal('m3_rg');
+      d.residenteFiscal = getVal('m3_residenteFiscal') || 'Brasil';
+      d.trips = [
+        { saida_data: fmtDate(getVal('m3_t1_sd')), saida_hora: fmtTime(getVal('m3_t1_sh')), saida_local: getVal('m3_t1_sl'),
+          chegada_data: fmtDate(getVal('m3_t1_cd')), chegada_hora: fmtTime(getVal('m3_t1_ch')), chegada_local: getVal('m3_t1_cl') },
+        { saida_data: fmtDate(getVal('m3_t2_sd')), saida_hora: fmtTime(getVal('m3_t2_sh')), saida_local: getVal('m3_t2_sl'),
+          chegada_data: fmtDate(getVal('m3_t2_cd')), chegada_hora: fmtTime(getVal('m3_t2_ch')), chegada_local: getVal('m3_t2_cl') },
+      ];
+      if (!d.valor || !d.valorExtenso || !d.periodoInicio || !d.periodoFim) {
+        showStatus('Preencha os campos obrigatórios (valor e período).', 'error');
+        return;
+      }
+      bodyXml = buildModelo3Xml(d);
+      title = 'Modelo 3 - Recibo de Diárias (Outorgado)';
+      filename = `Modelo3_Diarias_${d.outorgado.split(' ').pop()}_${d.processo.replace(/\//g,'-')}.docx`;
+
+    } else if (selectedModelo === 'modelo4') {
+      d.valor = getVal('m4_valor');
+      d.valorExtenso = getVal('m4_valorExtenso');
+      d.periodoInicio = fmtDate(getVal('m4_periodoInicio'));
+      d.periodoFim = fmtDate(getVal('m4_periodoFim'));
+      d.diarias = getVal('m4_diarias');
+      d.manutencao = getVal('m4_manutencao');
+      d.cambio = getVal('m4_cambio');
+      d.residenteFiscal = getVal('m4_residenteFiscal') || 'Brasil';
+      d.trips = [
+        { saida_data: fmtDate(getVal('m4_t1_sd')), saida_hora: fmtTime(getVal('m4_t1_sh')), saida_local: getVal('m4_t1_sl'),
+          chegada_data: fmtDate(getVal('m4_t1_cd')), chegada_hora: fmtTime(getVal('m4_t1_ch')), chegada_local: getVal('m4_t1_cl') },
+        { saida_data: fmtDate(getVal('m4_t2_sd')), saida_hora: fmtTime(getVal('m4_t2_sh')), saida_local: getVal('m4_t2_sl'),
+          chegada_data: fmtDate(getVal('m4_t2_cd')), chegada_hora: fmtTime(getVal('m4_t2_ch')), chegada_local: getVal('m4_t2_cl') },
+      ];
+      if (!d.valor || !d.valorExtenso || !d.periodoInicio || !d.periodoFim) {
+        showStatus('Preencha os campos obrigatórios (valor e período).', 'error');
+        return;
+      }
+      bodyXml = buildModelo4Xml(d);
+      title = 'Modelo 4 - Recibo de Diárias (Terceiros)';
+      filename = `Modelo4_Diarias_${d.nome.split(' ')[0]}_${d.processo.replace(/\//g,'-')}.docx`;
+
+    } else if (selectedModelo === 'modelo5') {
+      d.valor = getVal('m5_valor');
+      d.valorExtenso = getVal('m5_valorExtenso');
+      d.viagem1_trajeto = getVal('m5_v1_traj');
+      d.viagem1_datas = getVal('m5_v1_datas');
+      d.viagem1_qtd = getVal('m5_v1_qtd');
+      d.viagem2_trajeto = getVal('m5_v2_traj');
+      d.viagem2_datas = getVal('m5_v2_datas');
+      d.viagem2_qtd = getVal('m5_v2_qtd');
+      if (!d.valor || !d.valorExtenso) {
+        showStatus('Preencha o valor e o valor por extenso.', 'error');
+        return;
+      }
+      bodyXml = buildModelo5Xml(d);
+      title = 'Modelo 5 - Recibo de Transporte Urbano';
+      filename = `Modelo5_Transporte_${d.nome.split(' ')[0]}_${d.processo.replace(/\//g,'-')}.docx`;
+    }
+
+    const blob = await buildDocx(bodyXml, title);
+    
+    // Try downloads capability first (published artifact), fallback to native browser download
+    let downloaded = false;
+    try {
+      const dl = await claude.use('downloads');
+      if (dl) {
+        await dl.save({ filename, data: blob });
+        downloaded = true;
+      }
+    } catch(e) { /* not available or declined */ }
+    
+    if (!downloaded) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+    showStatus('✔ Documento gerado com sucesso! O download foi iniciado.', 'success');
+
+  } catch(err) {
+    console.error(err);
+    showStatus('Erro ao gerar o documento: ' + err.message, 'error');
+  } finally {
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
