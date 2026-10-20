@@ -603,9 +603,9 @@ const GOOGLE_CLIENT_ID  = '61308368694-jf0pmq9d1inlcjqiaduvkrgpk1d6mj6u.apps.goo
 const SPREADSHEET_ID    = '1D8lYmRR5YtTGO34O_9kV3IPh0jnRpx874myAAWoF9FE';
 const SCOPES            = 'https://www.googleapis.com/auth/spreadsheets.readonly';
 
-// GIDs das abas (fixos)
-const GID_SOLICITANTES  = '0';               // aba DadosFormulário
-const GID_OUTORGADOS    = '1386270009';       // aba Outorgados
+// Nomes das abas na planilha
+const ABA_SOLICITANTES  = 'DadosFormulário';
+const ABA_OUTORGADOS    = 'Outorgados';
 
 // =====================================================
 // ESTADO GLOBAL
@@ -688,51 +688,67 @@ function loginExplicit() {
 }
 
 // =====================================================
-// GOOGLE SHEETS API — leitura das duas abas via CSV
+// GOOGLE SHEETS API v4 — leitura via JSON
 // =====================================================
-async function fetchSheetCSV(gid) {
-  const url = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/export?format=csv&gid=${gid}`;
+async function fetchSheetRange(aba) {
+  const range = encodeURIComponent(`${aba}!A:Z`);
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${range}`;
   const resp = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` }
   });
-  if (resp.status === 403) throw Object.assign(new Error('sem_permissao'), { code: 403 });
+  if (resp.status === 403 || resp.status === 401) {
+    const body = await resp.json().catch(() => ({}));
+    throw Object.assign(new Error('sem_permissao'), { code: resp.status, detail: body });
+  }
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  return resp.text();
+  const json = await resp.json();
+  return json.values || [];   // array de arrays
+}
+
+// Converte array de arrays em array de objetos usando a 1ª linha como header
+function rowsToObjects(values) {
+  if (!values || values.length < 2) return [];
+  const headers = values[0];
+  return values.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((h, i) => { obj[h.trim()] = (row[i] || '').trim(); });
+    return obj;
+  });
 }
 
 async function loadSheetData() {
   setBanner('🔄 Carregando dados da planilha…', 'loading');
   try {
-    const [csvSol, csvOut] = await Promise.all([
-      fetchSheetCSV(GID_SOLICITANTES),
-      fetchSheetCSV(GID_OUTORGADOS),
+    const [rowsSol, rowsOut] = await Promise.all([
+      fetchSheetRange(ABA_SOLICITANTES),
+      fetchSheetRange(ABA_OUTORGADOS),
     ]);
 
     // Parseia Solicitantes
     SOLICITANTES = {};
-    parseCSV(csvSol).forEach(row => {
+    rowsToObjects(rowsSol).forEach(row => {
       const nome = row['Nome'] || '';
       if (!nome) return;
       const key = nome.toLowerCase().replace(/\s+/g,'_');
       SOLICITANTES[key] = {
         nome,
-        rg:           row['RG'] || '',
-        cpf:          fmtCPF(row['CPF'] || ''),
-        endereco:     row['Rua e numero'] || '',
-        complemento:  row['Complemento'] || '',
-        bairro:       row['Bairro'] || '',
-        cidade:       row['Cidade'] || '',
-        estado:       row['Estado'] || '',
-        banco:        row['Banco'] || '',
-        agencia:      row['Agencia'] || '',
-        conta:        row['Conta'] || '',
+        rg:              row['RG'] || '',
+        cpf:             fmtCPF(row['CPF'] || ''),
+        endereco:        row['Rua e numero'] || '',
+        complemento:     row['Complemento'] || '',
+        bairro:          row['Bairro'] || '',
+        cidade:          row['Cidade'] || '',
+        estado:          row['Estado'] || '',
+        banco:           row['Banco'] || '',
+        agencia:         row['Agencia'] || '',
+        conta:           row['Conta'] || '',
         residenteFiscal: row['Residente Fiscal'] || 'Brasil',
       };
     });
 
     // Parseia Outorgados/Convênios
     CONVENIOS = {};
-    parseCSV(csvOut).forEach(row => {
+    rowsToObjects(rowsOut).forEach(row => {
       const conv = row['Convenio'] || '';
       const out  = row['Outorgado'] || '';
       if (conv && out) CONVENIOS[conv] = out;
@@ -743,10 +759,10 @@ async function loadSheetData() {
     setBanner('');
   } catch(e) {
     console.error('Erro ao carregar planilha:', e);
-    if (e.code === 403) {
+    if (e.code === 403 || e.code === 401) {
       setBanner('⚠️ Você não tem permissão para acessar a planilha. Solicite acesso ao responsável.', 'error');
     } else {
-      setBanner('⚠️ Erro ao carregar dados da planilha. Recarregue a página.', 'error');
+      setBanner(`⚠️ Erro ao carregar dados da planilha (${e.message}). Recarregue a página.`, 'error');
     }
   }
 }
