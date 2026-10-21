@@ -56,28 +56,28 @@
   header h1 { font-size: 18px; font-weight: 700; line-height: 1.2; }
   header p { font-size: 12px; opacity: 0.8; margin-top: 2px; }
 
-  .container { max-width: 860px; margin: 0 auto; padding: 28px 20px 60px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 28px 32px 60px; }
 
   .card {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 24px;
+    padding: 28px 32px;
     margin-bottom: 20px;
     box-shadow: var(--shadow);
   }
   .card-title {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--primary);
-    margin-bottom: 16px;
+    margin-bottom: 18px;
     padding-bottom: 10px;
     border-bottom: 2px solid var(--accent);
   }
 
-  .form-row { display: grid; gap: 14px; margin-bottom: 14px; }
+  .form-row { display: grid; gap: 16px; margin-bottom: 16px; }
   .form-row.cols-2 { grid-template-columns: 1fr 1fr; }
   .form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
   .form-row.cols-1 { grid-template-columns: 1fr; }
@@ -85,20 +85,21 @@
     .form-row.cols-2, .form-row.cols-3 { grid-template-columns: 1fr; }
   }
 
-  label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
   label span.req { color: var(--error); margin-left: 2px; }
   
   input, select, textarea {
     width: 100%;
-    padding: 9px 12px;
+    padding: 10px 14px;
     border: 1px solid var(--border);
     border-radius: 6px;
-    font-size: 13.5px;
+    font-size: 15px;
     font-family: inherit;
     background: var(--input-bg);
     color: var(--text);
     transition: border-color 0.15s, box-shadow 0.15s;
     appearance: auto;
+    min-width: 0;
   }
   input:focus, select:focus, textarea:focus {
     outline: none;
@@ -113,24 +114,23 @@
   /* Trip rows */
   .trip-row {
     display: grid;
-    grid-template-columns: 110px 80px 1fr 110px 80px 1fr;
-    gap: 8px;
+    grid-template-columns: 150px 110px 1fr 150px 110px 1fr;
+    gap: 10px;
     align-items: end;
-    margin-bottom: 8px;
-    padding: 10px;
+    margin-bottom: 10px;
+    padding: 14px;
     background: var(--section-bg);
     border-radius: 6px;
   }
-  @media (max-width: 700px) {
+  @media (max-width: 900px) {
     .trip-row { grid-template-columns: 1fr 1fr 1fr; }
-    .trip-row > :nth-child(n+4) { /* segunda linha */ }
   }
-  .trip-row label { font-size: 11px; }
+  .trip-row label { font-size: 12px; }
   .trip-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--primary);
-    margin: 12px 0 6px;
+    margin: 14px 0 6px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
@@ -223,6 +223,51 @@
   .divider { height: 1px; background: var(--border); margin: 6px 0 16px; }
   
   .valor-extenso-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; font-style: italic; }
+
+  /* Botão novo solicitante */
+  .btn-novo-sol {
+    font-size: 12px; font-weight: 600; font-family: inherit;
+    color: var(--primary); background: none; border: 1.5px dashed var(--primary);
+    border-radius: 6px; padding: 6px 12px; cursor: pointer;
+    margin-top: 4px; transition: background 0.15s;
+  }
+  .btn-novo-sol:hover { background: var(--accent); }
+
+  /* Modal */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border-radius: 10px;
+    padding: 28px; width: 100%; max-width: 560px;
+    max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+  }
+  .modal-title {
+    font-size: 15px; font-weight: 700; color: var(--primary);
+    margin-bottom: 18px; padding-bottom: 10px;
+    border-bottom: 2px solid var(--accent);
+  }
+  .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .btn-salvar {
+    flex: 1; padding: 11px; background: var(--primary); color: white;
+    border: none; border-radius: 6px; font-size: 14px; font-weight: 700;
+    font-family: inherit; cursor: pointer; transition: background 0.15s;
+  }
+  .btn-salvar:hover { background: var(--primary-hover); }
+  .btn-salvar:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-cancelar {
+    padding: 11px 20px; background: none; border: 1.5px solid var(--border);
+    border-radius: 6px; font-size: 14px; font-family: inherit;
+    color: var(--text); cursor: pointer;
+  }
+  .btn-cancelar:hover { background: var(--section-bg); }
+  .modal-status { font-size: 12px; margin-top: 10px; text-align: center; min-height: 18px; }
+  .modal-status.error { color: var(--error); }
+  .modal-status.ok { color: var(--success); }
 </style>
 </head>
 <body>
@@ -251,9 +296,8 @@
         <label>Convênio <span class="req">*</span></label>
         <select id="sel_convenio" onchange="onConvenioChange()">
           <option value="">Selecione o convênio…</option>
-          <option value="2021/05251-8">2021/05251-8</option>
-          <option value="2026/05010-4">2026/05010-4</option>
         </select>
+        <div id="convenio_titulo" style="font-size:13px; color:var(--text-muted); margin-top:6px; font-style:italic; min-height:18px;"></div>
       </div>
       <div class="field-group">
         <label>Outorgado</label>
@@ -299,8 +343,8 @@
         <label>Nome <span class="req">*</span></label>
         <select id="sel_solicitante" onchange="onSolicitanteChange()">
           <option value="">Selecione o solicitante…</option>
-          <option value="maria">Maria Ester Dal Poz</option>
         </select>
+        <button class="btn-novo-sol" onclick="abrirModalNovoSolicitante()" type="button">+ Novo solicitante</button>
       </div>
       <div class="field-group">
         <label>CPF</label>
@@ -595,13 +639,85 @@
 
 </div>
 
+<!-- Modal Novo Solicitante -->
+<div class="modal-overlay" id="modal_novo_sol">
+  <div class="modal">
+    <div class="modal-title">➕ Cadastrar Novo Solicitante</div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Nome completo <span class="req">*</span></label>
+        <input type="text" id="ns_nome" placeholder="Ex.: João da Silva">
+      </div>
+      <div class="field-group">
+        <label>CPF <span class="req">*</span></label>
+        <input type="text" id="ns_cpf" placeholder="Ex.: 123.456.789-00">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>RG</label>
+        <input type="text" id="ns_rg" placeholder="Ex.: 12.345.678-9">
+      </div>
+      <div class="field-group">
+        <label>Residente fiscal em</label>
+        <input type="text" id="ns_residenteFiscal" value="Brasil">
+      </div>
+    </div>
+    <div class="form-row cols-1">
+      <div class="field-group">
+        <label>Endereço (rua e número) <span class="req">*</span></label>
+        <input type="text" id="ns_endereco" placeholder="Ex.: Rua das Flores, 123">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Complemento</label>
+        <input type="text" id="ns_complemento" placeholder="Apto, sala…">
+      </div>
+      <div class="field-group">
+        <label>Bairro <span class="req">*</span></label>
+        <input type="text" id="ns_bairro" placeholder="Ex.: Centro">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field-group">
+        <label>Cidade <span class="req">*</span></label>
+        <input type="text" id="ns_cidade" placeholder="Ex.: Campinas">
+      </div>
+      <div class="field-group">
+        <label>Estado <span class="req">*</span></label>
+        <input type="text" id="ns_estado" placeholder="Ex.: SP" maxlength="2">
+      </div>
+    </div>
+    <div class="form-row cols-3">
+      <div class="field-group">
+        <label>Banco <span class="req">*</span></label>
+        <input type="text" id="ns_banco" placeholder="Ex.: 001 Banco do Brasil">
+      </div>
+      <div class="field-group">
+        <label>Agência <span class="req">*</span></label>
+        <input type="text" id="ns_agencia" placeholder="Ex.: 1506-7">
+      </div>
+      <div class="field-group">
+        <label>Conta Corrente <span class="req">*</span></label>
+        <input type="text" id="ns_conta" placeholder="Ex.: 1655-1">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancelar" onclick="fecharModalNovoSolicitante()" type="button">Cancelar</button>
+      <button class="btn-salvar" id="btn_salvar_sol" onclick="salvarNovoSolicitante()" type="button">💾 Salvar e usar</button>
+    </div>
+    <div class="modal-status" id="modal_status"></div>
+  </div>
+</div>
+
 <script>
 // =====================================================
 // CONFIG
 // =====================================================
 const GOOGLE_CLIENT_ID  = '61308368694-jf0pmq9d1inlcjqiaduvkrgpk1d6mj6u.apps.googleusercontent.com';
 const SPREADSHEET_ID    = '1D8lYmRR5YtTGO34O_9kV3IPh0jnRpx874myAAWoF9FE';
-const SCOPES            = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+const SCOPES            = 'https://www.googleapis.com/auth/spreadsheets';
 
 // Nomes das abas na planilha
 const ABA_SOLICITANTES  = 'DadosFormulário';
@@ -749,9 +865,10 @@ async function loadSheetData() {
     // Parseia Outorgados/Convênios
     CONVENIOS = {};
     rowsToObjects(rowsOut).forEach(row => {
-      const conv = row['Convenio'] || '';
-      const out  = row['Outorgado'] || '';
-      if (conv && out) CONVENIOS[conv] = out;
+      const conv   = row['Convenio'] || '';
+      const out    = row['Outorgado'] || '';
+      const titulo = row['Título'] || row['Titulo'] || '';
+      if (conv && out) CONVENIOS[conv] = { outorgado: out, titulo };
     });
 
     populateSelects();
@@ -804,9 +921,10 @@ function fmtCPF(v) {
 function populateSelects() {
   const selConv = document.getElementById('sel_convenio');
   selConv.innerHTML = '<option value="">Selecione o convênio…</option>';
-  Object.entries(CONVENIOS).forEach(([conv]) => {
+  Object.entries(CONVENIOS).forEach(([conv, info]) => {
     const o = document.createElement('option');
-    o.value = o.textContent = conv;
+    o.value = conv;
+    o.textContent = info.titulo ? `${conv} — ${info.titulo}` : conv;
     selConv.appendChild(o);
   });
 
@@ -830,7 +948,10 @@ window.addEventListener('DOMContentLoaded', () => {
 // =====================================================
 function onConvenioChange() {
   const v = document.getElementById('sel_convenio').value;
-  document.getElementById('out_outorgado').value = CONVENIOS[v] || '';
+  const info = CONVENIOS[v] || {};
+  document.getElementById('out_outorgado').value = info.outorgado || '';
+  const tituloEl = document.getElementById('convenio_titulo');
+  if (tituloEl) tituloEl.textContent = info.titulo || '';
 }
 function onSolicitanteChange() {
   const v = document.getElementById('sel_solicitante').value;
@@ -1470,6 +1591,127 @@ async function generateDocument() {
     showStatus('Erro ao gerar o documento: ' + err.message, 'error');
   } finally {
     btn.classList.remove('loading');
+    btn.disabled = false;
+  }
+}
+
+// =====================================================
+// MODAL — NOVO SOLICITANTE
+// =====================================================
+function abrirModalNovoSolicitante() {
+  // Limpa campos
+  ['nome','cpf','rg','endereco','complemento','bairro','cidade','estado','banco','agencia','conta'].forEach(f => {
+    const el = document.getElementById('ns_' + f);
+    if (el) el.value = f === 'residenteFiscal' ? 'Brasil' : '';
+  });
+  document.getElementById('ns_residenteFiscal').value = 'Brasil';
+  document.getElementById('modal_status').textContent = '';
+  document.getElementById('modal_status').className = 'modal-status';
+  document.getElementById('btn_salvar_sol').disabled = false;
+  document.getElementById('modal_novo_sol').classList.add('open');
+}
+
+function fecharModalNovoSolicitante() {
+  document.getElementById('modal_novo_sol').classList.remove('open');
+}
+
+// Fecha modal clicando fora
+document.getElementById('modal_novo_sol').addEventListener('click', function(e) {
+  if (e.target === this) fecharModalNovoSolicitante();
+});
+
+function setModalStatus(msg, type) {
+  const el = document.getElementById('modal_status');
+  el.textContent = msg;
+  el.className = 'modal-status ' + (type || '');
+}
+
+async function salvarNovoSolicitante() {
+  const ns = id => document.getElementById('ns_' + id).value.trim();
+
+  // Validação
+  const obrigatorios = ['nome','cpf','endereco','bairro','cidade','estado','banco','agencia','conta'];
+  for (const f of obrigatorios) {
+    if (!ns(f)) {
+      setModalStatus('Preencha todos os campos obrigatórios (*).', 'error');
+      return;
+    }
+  }
+
+  const btn = document.getElementById('btn_salvar_sol');
+  btn.disabled = true;
+  setModalStatus('💾 Salvando na planilha…', '');
+
+  try {
+    // Monta a nova linha na mesma ordem das colunas da aba DadosFormulário:
+    // Nome, RG, CPF, Rua e numero, Complemento, Bairro, Cidade, Estado, Banco, Agencia, Conta, Residente Fiscal
+    const novaLinha = [
+      ns('nome'),
+      ns('rg'),
+      ns('cpf'),
+      ns('endereco'),
+      ns('complemento'),
+      ns('bairro'),
+      ns('cidade'),
+      ns('estado'),
+      ns('banco'),
+      ns('agencia'),
+      ns('conta'),
+      ns('residenteFiscal') || 'Brasil',
+    ];
+
+    // Append na aba DadosFormulário via Sheets API v4
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(ABA_SOLICITANTES)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ values: [novaLinha] }),
+    });
+
+    if (resp.status === 403 || resp.status === 401) {
+      throw new Error('Sem permissão para editar a planilha. Solicite acesso de Editor ao responsável.');
+    }
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `Erro HTTP ${resp.status}`);
+    }
+
+    // Adiciona localmente sem recarregar a planilha inteira
+    const nome = ns('nome');
+    const key = nome.toLowerCase().replace(/\s+/g,'_');
+    SOLICITANTES[key] = {
+      nome,
+      rg:              ns('rg'),
+      cpf:             ns('cpf'),
+      endereco:        ns('endereco'),
+      complemento:     ns('complemento'),
+      bairro:          ns('bairro'),
+      cidade:          ns('cidade'),
+      estado:          ns('estado'),
+      banco:           ns('banco'),
+      agencia:         ns('agencia'),
+      conta:           ns('conta'),
+      residenteFiscal: ns('residenteFiscal') || 'Brasil',
+    };
+
+    // Adiciona no dropdown e seleciona
+    const selSol = document.getElementById('sel_solicitante');
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = nome;
+    selSol.appendChild(opt);
+    selSol.value = key;
+    onSolicitanteChange();
+
+    setModalStatus('✔ Salvo com sucesso!', 'ok');
+    setTimeout(() => fecharModalNovoSolicitante(), 1200);
+
+  } catch(e) {
+    console.error('Erro ao salvar solicitante:', e);
+    setModalStatus('⚠️ ' + e.message, 'error');
     btn.disabled = false;
   }
 }
