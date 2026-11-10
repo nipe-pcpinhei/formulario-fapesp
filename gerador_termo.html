@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gerador de Termo de Uso – NIPE/UNICAMP</title>
+<style>
+  :root {
+    --bg:#f7f8fa;--surface:#ffffff;--border:#e2e5ea;
+    --accent:#1a4fa0;--accent-light:#e8eef8;
+    --text:#1a1d23;--muted:#6b7280;
+    --success:#15803d;--success-bg:#dcfce7;
+    --row-hover:#f0f4fb;--row-selected:#dbeafe;
+  }
+  @media(prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#0f1117;--surface:#1c1f2b;--border:#2e3347;
+      --accent:#5b8def;--accent-light:#1a2a4a;
+      --text:#e8eaf0;--muted:#8b93a8;
+      --success:#4ade80;--success-bg:#052e16;
+      --row-hover:#1e2436;--row-selected:#1e3a6e;
+    }
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+  /* ── LOGIN SCREEN ── */
+  #login-screen{
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    min-height:100vh;gap:20px;padding:40px;
+  }
+  #login-screen .logo{
+    background:var(--accent);color:#fff;border-radius:16px;
+    padding:20px 28px;display:flex;align-items:center;gap:14px;
+    max-width:420px;width:100%;
+  }
+  #login-screen .logo h1{font-size:1.1rem;font-weight:600}
+  #login-screen .logo p{font-size:.8rem;opacity:.8;margin-top:2px}
+  #login-screen .card{
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:36px;max-width:380px;width:100%;text-align:center;
+  }
+  #login-screen .card h2{font-size:1rem;font-weight:600;margin-bottom:8px}
+  #login-screen .card p{font-size:.88rem;color:var(--muted);margin-bottom:24px;line-height:1.5}
+  #btn-login{
+    display:inline-flex;align-items:center;gap:10px;
+    background:#fff;border:1px solid #dadce0;border-radius:8px;
+    padding:11px 20px;font-size:.92rem;font-weight:500;cursor:pointer;
+    color:#3c4043;transition:box-shadow .15s;width:100%;justify-content:center;
+  }
+  #btn-login:hover{box-shadow:0 2px 8px rgba(0,0,0,.15)}
+  #btn-login svg{flex-shrink:0}
+
+  /* ── MAIN APP ── */
+  #app{display:none}
+  header{background:var(--accent);color:#fff;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .header-left{display:flex;align-items:center;gap:14px}
+  header h1{font-size:1rem;font-weight:600}
+  header p{font-size:.78rem;opacity:.8;margin-top:2px}
+  .user-chip{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.15);border-radius:20px;padding:5px 12px;font-size:.8rem}
+  .user-chip img{width:22px;height:22px;border-radius:50%}
+  .btn-signout{background:none;border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:6px;padding:4px 10px;font-size:.75rem;cursor:pointer;margin-left:4px}
+  .btn-signout:hover{background:rgba(255,255,255,.15)}
+
+  main{max-width:1200px;margin:0 auto;padding:24px 20px 60px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .card-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+  .card-header h2{font-size:.95rem;font-weight:600}
+  .badge{background:var(--accent);color:#fff;border-radius:20px;font-size:.72rem;padding:2px 9px;font-weight:700}
+  .search-bar{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center}
+  .search-bar input{flex:1;padding:9px 14px;border:1px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);font-size:.9rem;outline:none;transition:border-color .15s}
+  .search-bar input:focus{border-color:var(--accent)}
+  .btn-refresh{padding:8px 14px;background:var(--accent-light);color:var(--accent);border:1px solid var(--accent);border-radius:7px;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+  .btn-refresh:hover{background:var(--accent);color:#fff}
+  .btn-refresh:disabled{opacity:.5;cursor:not-allowed}
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.82rem}
+  th{background:var(--bg);color:var(--muted);font-weight:600;font-size:.75rem;text-transform:uppercase;letter-spacing:.04em;padding:10px 14px;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap}
+  td{padding:10px 14px;border-bottom:1px solid var(--border);vertical-align:top}
+  tr.data-row{cursor:pointer;transition:background .1s}
+  tr.data-row:hover td{background:var(--row-hover)}
+  tr.data-row.selected td{background:var(--row-selected)}
+  .nome-cell{font-weight:600}
+  .data-cell{white-space:nowrap;color:var(--muted)}
+  .item-cell{max-width:280px}
+  .panel{margin-top:20px;border:2px solid var(--accent);border-radius:10px;background:var(--surface);overflow:hidden}
+  .panel-header{background:var(--accent-light);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+  .panel-header h3{font-size:.95rem;font-weight:700;color:var(--accent)}
+  .panel-body{padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:640px){.panel-body{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .field input,.field textarea{border:1px solid var(--border);border-radius:6px;padding:8px 11px;font-size:.88rem;background:var(--bg);color:var(--text);outline:none;transition:border-color .15s;font-family:inherit}
+  .field input:focus,.field textarea:focus{border-color:var(--accent)}
+  .field textarea{resize:vertical;min-height:60px}
+  .field.full{grid-column:1/-1}
+  .items-section{padding:0 20px 20px}
+  .item-block{border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px;background:var(--bg)}
+  .item-block h4{font-size:.8rem;font-weight:700;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em}
+  .btn-gerar{display:flex;align-items:center;gap:8px;background:var(--accent);color:#fff;border:none;padding:11px 22px;border-radius:8px;font-size:.92rem;font-weight:700;cursor:pointer;transition:opacity .15s;margin:14px 20px 20px}
+  .btn-gerar:hover{opacity:.88}
+  .msg-ok{background:var(--success-bg);color:var(--success);border-radius:7px;padding:10px 16px;font-size:.88rem;font-weight:600;margin:0 20px 16px;display:none}
+  .loading-row td{text-align:center;padding:32px;color:var(--muted);font-style:italic}
+  .error-bar{background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c;padding:12px 20px;font-size:.88rem;border-radius:8px;margin:12px 20px;display:none}
+  .last-updated{font-size:.75rem;color:var(--muted);padding:8px 20px 4px}
+</style>
+</head>
+<body>
+
+<!-- ── TELA DE LOGIN ───────────────────────────────────────────────────── -->
+<div id="login-screen">
+  <div class="logo">
+    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+      <rect width="32" height="32" rx="8" fill="rgba(255,255,255,.2)"/>
+      <path d="M8 10h16M8 15h10M8 20h12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <h1>Gerador de Termo de Uso</h1>
+      <p>NIPE · Unicamp</p>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Acesso restrito</h2>
+    <p>Entre com sua conta Google institucional para acessar os dados da planilha de equipamentos.</p>
+    <button id="btn-login" onclick="signIn()">
+      <svg width="20" height="20" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      Entrar com Google
+    </button>
+  </div>
+</div>
+
+<!-- ── APP PRINCIPAL ──────────────────────────────────────────────────── -->
+<div id="app">
+  <header>
+    <div class="header-left">
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="8" fill="rgba(255,255,255,.15)"/>
+        <path d="M8 10h16M8 15h10M8 20h12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <h1>Gerador de Termo de Autorização de Uso</h1>
+        <p>NIPE · Unicamp — dados lidos da planilha com suas credenciais</p>
+      </div>
+    </div>
+    <div class="user-chip">
+      <img id="user-avatar" src="" alt="" onerror="this.style.display='none'">
+      <span id="user-name"></span>
+      <button class="btn-signout" onclick="signOut()">Sair</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="card">
+      <div class="card-header">
+        <h2>Registros — Aba T.A. Uso</h2>
+        <span class="badge" id="count-badge">…</span>
+      </div>
+      <div class="search-bar">
+        <input type="text" id="search" placeholder="Filtrar por nome, vínculo, equipamento…" oninput="filterTable()" disabled>
+        <button class="btn-refresh" id="btn-reload" onclick="loadSheet()">↻ Atualizar</button>
+      </div>
+      <p class="last-updated" id="last-updated"></p>
+      <div class="error-bar" id="error-bar"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Nome</th><th>Vínculo</th><th>Início</th><th>Vigência</th><th>Equipamento(s)</th></tr>
+          </thead>
+          <tbody id="tbody">
+            <tr class="loading-row"><td colspan="5">Carregando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel" id="panel" style="display:none">
+      <div class="panel-header">
+        <h3 id="panel-title">Dados do Termo</h3>
+        <span style="font-size:.8rem;color:var(--muted)">Revise e clique em Gerar</span>
+      </div>
+      <div class="panel-body">
+        <div class="field"><label>Artigo</label><input type="text" id="f-artigo" placeholder="o / a"></div>
+        <div class="field"><label>Título</label><input type="text" id="f-titulo"></div>
+        <div class="field full"><label>Nome completo</label><input type="text" id="f-nome"></div>
+        <div class="field full"><label>Vínculo</label><input type="text" id="f-vinculo"></div>
+        <div class="field"><label>RG</label><input type="text" id="f-rg"></div>
+        <div class="field"><label>CPF</label><input type="text" id="f-cpf"></div>
+        <div class="field full"><label>Endereço</label><input type="text" id="f-endereco"></div>
+        <div class="field full"><label>Local de guarda</label><input type="text" id="f-local"></div>
+        <div class="field"><label>Data início (dd/mm/aaaa)</label><input type="text" id="f-inicio"></div>
+        <div class="field"><label>Vigente até (ou "sem prazo")</label><input type="text" id="f-vigente"></div>
+      </div>
+      <div class="items-section" id="items-section"></div>
+      <button class="btn-gerar" onclick="gerarDocx()">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+          <path d="M10 3v9M6 17h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+          <path d="M3 12l7 5 7-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Gerar Termo (.docx)
+      </button>
+      <div class="msg-ok" id="msg-ok">✓ Documento gerado! Verifique os arquivos baixados.</div>
+    </div>
+  </main>
+</div>
+
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async></script>
+<!-- docx.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+const CLIENT_ID  = '61308368694-jf0pmq9d1inlcjqiaduvkrgpk1d6mj6u.apps.googleusercontent.com';
+const SHEET_ID   = '1_PUbMGsshUAX7Mu57PXCl2kRt5zty-CY9w0FdKHknNY';
+const SHEET_NAME = 'T.A. Uso';
+const SCOPE      = 'https://www.googleapis.com/auth/spreadsheets.readonly';
+
+let accessToken = null;
+let tokenClient = null;
+let ALL_ROWS = [], filtered = [], selectedIdx = null;
+
+// ── AUTH ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  // Inicializa o token client (fluxo implícito — sem backend)
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPE,
+    callback: (resp) => {
+      if (resp.error) { showError('Erro de autenticação: ' + resp.error); return; }
+      accessToken = resp.access_token;
+      // Busca info do usuário
+      fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: 'Bearer ' + accessToken }
+      }).then(r => r.json()).then(info => {
+        document.getElementById('user-name').textContent = info.name || info.email || '';
+        document.getElementById('user-avatar').src = info.picture || '';
+      }).catch(() => {});
+      showApp();
+      loadSheet();
+    },
+  });
+});
+
+function signIn() {
+  if (!window.google) { alert('Aguarde o carregamento da biblioteca Google.'); return; }
+  tokenClient.requestAccessToken({ prompt: 'consent' });
+}
+
+function signOut() {
+  if (accessToken) google.accounts.oauth2.revoke(accessToken, () => {});
+  accessToken = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  ALL_ROWS = []; filtered = []; selectedIdx = null;
+}
+
+function showApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+// ── CARREGAMENTO ─────────────────────────────────────────────────────────────
+async function loadSheet() {
+  if (!accessToken) { signIn(); return; }
+  const btn = document.getElementById('btn-reload');
+  const errorBar = document.getElementById('error-bar');
+  btn.disabled = true; btn.textContent = '…';
+  errorBar.style.display = 'none';
+  document.getElementById('panel').style.display = 'none';
+  document.getElementById('count-badge').textContent = '…';
+  document.getElementById('tbody').innerHTML =
+    '<tr class="loading-row"><td colspan="5">Carregando dados da planilha…</td></tr>';
+
+  try {
+    // Busca via Sheets API v4 (autenticado)
+    const range = encodeURIComponent(`'${SHEET_NAME}'!A1:R200`);
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${range}`;
+    const res = await fetch(url, { headers: { Authorization: 'Bearer ' + accessToken } });
+
+    if (res.status === 401) {
+      // Token expirou — pede novo
+      accessToken = null;
+      tokenClient.requestAccessToken({ prompt: '' });
+      return;
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error((err.error && err.error.message) || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    ALL_ROWS = parseRows(data.values || []);
+    filtered = [...ALL_ROWS];
+    renderTable();
+    document.getElementById('search').disabled = false;
+    document.getElementById('last-updated').textContent =
+      `Atualizado em ${new Date().toLocaleString('pt-BR')} · ${ALL_ROWS.length} registro(s)`;
+  } catch (e) {
+    showError(`Erro ao carregar a planilha: ${e.message}`);
+    document.getElementById('tbody').innerHTML =
+      '<tr class="loading-row"><td colspan="5">Falha ao carregar. Clique em ↻ Atualizar.</td></tr>';
+    document.getElementById('count-badge').textContent = '!';
+  } finally {
+    btn.disabled = false; btn.textContent = '↻ Atualizar';
+  }
+}
+
+function showError(msg) {
+  const bar = document.getElementById('error-bar');
+  bar.textContent = msg;
+  bar.style.display = 'block';
+}
+
+// ── PARSER ───────────────────────────────────────────────────────────────────
+function parseRows(rows) {
+  if (rows.length < 2) return [];
+  // rows[0] = cabeçalho, rows[1..] = dados
+  // A=0 Artigo B=1 Título C=2 Interessado D=3 Vínculo E=4 RG F=5 CPF
+  // G=6 Endereço H=7 Local I=8 Data J=9 Vigente
+  // K=10 Item1L1 L=11 Item1L2 … R=17 Item4L2
+  const data = [];
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const nome = (r[2] || '').trim();
+    if (!nome) continue;
+    const itens = [];
+    for (let j = 0; j < 4; j++) {
+      const l1 = (r[10 + j*2] || '').trim();
+      const l2 = (r[11 + j*2] || '').trim();
+      if (l1 || l2) itens.push({ linha1: l1, linha2: l2 });
+    }
+    if (!itens.length) continue;
+    data.push({
+      artigo:     (r[0]  || '').trim(),
+      titulo:     (r[1]  || '').trim(),
+      nome,
+      vinculo:    (r[3]  || '').trim(),
+      rg:         (r[4]  || '').trim(),
+      cpf:        (r[5]  || '').trim(),
+      endereco:   (r[6]  || '').trim(),
+      local:      (r[7]  || '').trim(),
+      dataInicio: (r[8]  || '').trim(),
+      vigente:    (r[9]  || '').trim(),
+      itens,
+    });
+  }
+  return data;
+}
+
+// ── TABELA ────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderTable() {
+  const tbody = document.getElementById('tbody');
+  document.getElementById('count-badge').textContent = filtered.length;
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--muted)">Nenhum registro encontrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map((r, i) => {
+    const itensStr = r.itens.map(it => it.linha1).join(' · ');
+    return `<tr class="data-row${selectedIdx===i?' selected':''}" onclick="selectRow(${i})">
+      <td class="nome-cell">${esc(r.titulo)} ${esc(r.nome)}</td>
+      <td>${esc(r.vinculo)||'—'}</td>
+      <td class="data-cell">${esc(r.dataInicio)||'—'}</td>
+      <td class="data-cell">${esc(r.vigente)||'—'}</td>
+      <td class="item-cell">${esc(itensStr)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterTable() {
+  const q = document.getElementById('search').value.toLowerCase();
+  filtered = ALL_ROWS.filter(r =>
+    [r.nome, r.vinculo, r.titulo, ...r.itens.map(it=>it.linha1)].join(' ').toLowerCase().includes(q)
+  );
+  selectedIdx = null;
+  document.getElementById('panel').style.display = 'none';
+  renderTable();
+}
+
+function selectRow(i) {
+  selectedIdx = i; renderTable();
+  const r = filtered[i];
+  document.getElementById('f-artigo').value   = r.artigo;
+  document.getElementById('f-titulo').value   = r.titulo;
+  document.getElementById('f-nome').value     = r.nome;
+  document.getElementById('f-vinculo').value  = r.vinculo;
+  document.getElementById('f-rg').value       = r.rg;
+  document.getElementById('f-cpf').value      = r.cpf;
+  document.getElementById('f-endereco').value = r.endereco;
+  document.getElementById('f-local').value    = r.local;
+  document.getElementById('f-inicio').value   = r.dataInicio;
+  document.getElementById('f-vigente').value  = r.vigente;
+  document.getElementById('panel-title').textContent = `Termo de Uso — ${r.titulo} ${r.nome}`;
+
+  const sec = document.getElementById('items-section');
+  sec.innerHTML =
+    '<div style="font-size:.8rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">Anexo I — Equipamentos</div>' +
+    r.itens.map((it, idx) => `
+      <div class="item-block">
+        <h4>Item ${idx+1}</h4>
+        <div class="field" style="margin-bottom:8px">
+          <label>Linha 1 — descrição do bem</label>
+          <textarea id="item-${idx}-l1" rows="2">${esc(it.linha1)}</textarea>
+        </div>
+        <div class="field">
+          <label>Linha 2 — processo / obs.</label>
+          <textarea id="item-${idx}-l2" rows="2">${esc(it.linha2)}</textarea>
+        </div>
+      </div>`).join('') +
+    `<button onclick="addItem()"
+       style="font-size:.82rem;background:none;border:1px dashed var(--border);
+              color:var(--accent);padding:8px 16px;border-radius:7px;cursor:pointer;margin-top:4px;">
+       + Adicionar item
+    </button>`;
+
+  document.getElementById('panel').style.display = 'block';
+  document.getElementById('msg-ok').style.display = 'none';
+  document.getElementById('panel').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function addItem() {
+  const sec = document.getElementById('items-section');
+  const n = sec.querySelectorAll('.item-block').length;
+  const d = document.createElement('div');
+  d.className = 'item-block';
+  d.innerHTML = `<h4>Item ${n+1}</h4>
+    <div class="field" style="margin-bottom:8px">
+      <label>Linha 1 — descrição do bem</label>
+      <textarea id="item-${n}-l1" rows="2"></textarea>
+    </div>
+    <div class="field">
+      <label>Linha 2 — processo / obs.</label>
+      <textarea id="item-${n}-l2" rows="2"></textarea>
+    </div>`;
+  sec.insertBefore(d, sec.querySelector('button'));
+}
+
+// ── GERAÇÃO DOCX ─────────────────────────────────────────────────────────────
+function collectData() {
+  const n = document.querySelectorAll('.item-block').length;
+  const itens = [];
+  for (let i = 0; i < n; i++) {
+    const l1 = document.getElementById(`item-${i}-l1`);
+    const l2 = document.getElementById(`item-${i}-l2`);
+    if (l1) itens.push({ linha1: l1.value.trim(), linha2: l2 ? l2.value.trim() : '' });
+  }
+  return {
+    artigo:     document.getElementById('f-artigo').value.trim(),
+    titulo:     document.getElementById('f-titulo').value.trim(),
+    nome:       document.getElementById('f-nome').value.trim(),
+    vinculo:    document.getElementById('f-vinculo').value.trim(),
+    rg:         document.getElementById('f-rg').value.trim(),
+    cpf:        document.getElementById('f-cpf').value.trim(),
+    endereco:   document.getElementById('f-endereco').value.trim(),
+    local:      document.getElementById('f-local').value.trim(),
+    dataInicio: document.getElementById('f-inicio').value.trim(),
+    vigente:    document.getElementById('f-vigente').value.trim(),
+    itens,
+  };
+}
+
+function formatDateFull(ds) {
+  if (!ds || ds.toLowerCase().includes('sem prazo')) return null;
+  const p = ds.split('/');
+  if (p.length !== 3) return ds;
+  const months = ['janeiro','fevereiro','março','abril','maio','junho',
+                  'julho','agosto','setembro','outubro','novembro','dezembro'];
+  let y = p[2]; if (y.length === 2) y = '20' + y;
+  return `${parseInt(p[0])} de ${months[parseInt(p[1])-1]} de ${y}`;
+}
+
+function gerarDocx() {
+  const d = collectData();
+  const { Document, Packer, Paragraph, TextRun, AlignmentType } = docx;
+  const ad   = d.artigo==='a'?'a':'o';
+  const ap   = d.artigo==='a'?'da':'do';
+  const pron = d.artigo==='a'?'a':'o';
+  const aut  = d.artigo==='a'?'Autorizada':'Autorizado';
+
+  const dI = formatDateFull(d.dataInicio);
+  const dV = d.vigente && !d.vigente.toLowerCase().includes('sem prazo') ? formatDateFull(d.vigente) : null;
+  const periodo = dI && dV ? `${dI} a ${dV}` : (dI ? `${dI} em diante, sem prazo para retorno` : `${d.dataInicio} a ${d.vigente}`);
+
+  const mn  = ['janeiro','fevereiro','março','abril','maio','junho',
+               'julho','agosto','setembro','outubro','novembro','dezembro'];
+  const now = new Date();
+  const cityDate = `Campinas, ${now.getDate()} de ${mn[now.getMonth()]} de ${now.getFullYear()}.`;
+
+  const idParts = [];
+  if (d.rg)  idParts.push(`RG ${d.rg}`);
+  if (d.cpf) idParts.push(`CPF ${d.cpf}`);
+  if (d.endereco && d.endereco !== d.local) idParts.push(d.endereco);
+  const idStr = `${d.titulo} ${d.nome}`.trim()
+    + (d.vinculo ? `, ${d.vinculo}` : '')
+    + (idParts.length ? ', ' + idParts.join(', ') : '');
+
+  const b = { bold:true, size:24, font:'Arial' };
+  const r = { size:24, font:'Arial' };
+  const J = AlignmentType.JUSTIFIED;
+
+  const ch = [
+    new Paragraph({ alignment:AlignmentType.CENTER, spacing:{after:480},
+      children:[new TextRun({text:'TERMO DE AUTORIZAÇÃO DE USO',...b})] }),
+    new Paragraph({ alignment:J, spacing:{after:240,line:360}, children:[
+      new TextRun({text:'A UNIVERSIDADE ESTADUAL DE CAMPINAS, neste ato representada pelo Coordenador do Núcleo Interdisciplinar de Planejamento Energético, ',...r}),
+      new TextRun({text:'Prof. Dr. Marcelo Pereira da Cunha',...b}),
+      new TextRun({text:`, no uso de suas atribuições legalmente conferidas, e nos termos da Deliberação CONSU-A-12/2013, autoriza ${ad} `,...r}),
+      new TextRun({text:idStr,...b}),
+      new TextRun({text:`, a usar os bens móveis, relacionados no anexo I, verso deste documento, de propriedade da Universidade, mantendo-${pron} sob sua responsabilidade, pelo período de ${periodo}.`,...r}),
+    ]}),
+    new Paragraph({ alignment:J, spacing:{after:240,line:360},
+      children:[new TextRun({text:`Os bens serão mantidos ${d.local} para uso nas atividades pertinentes à Universidade, podendo, quando necessário o deslocamento do bem para utilização em eventos científicos, reuniões técnicas e de interesse da Unicamp.`,...r})] }),
+    new Paragraph({ alignment:J, spacing:{after:240,line:360},
+      children:[new TextRun({text:`As despesas com o transporte, guarda, manutenção preventiva e corretiva, assistência técnica do equipamento, bem como outras que incidirem sobre o bem serão de responsabilidade exclusiva ${ap} ${aut}.`,...r})] }),
+    new Paragraph({ alignment:J, spacing:{after:240,line:360},
+      children:[new TextRun({text:`Constitui obrigação ${ap} ${aut} em manter os bens em bom estado de conservação e funcionamento, sendo de sua responsabilidade e ônus o ressarcimento do mesmo em caso de dano, roubo, furto, extravio, quando não houver seguro contratado que dê cobertura a tais eventos e desde que demonstrada a ocorrência de dolo ou culpa no sinistro.`,...r})] }),
+    new Paragraph({ alignment:J, spacing:{after:480,line:360},
+      children:[new TextRun({text:`A presente Autorização, ato precário que é, poderá, a qualquer tempo, ser sumariamente revogada sem ônus para a Universidade.`,...r})] }),
+    new Paragraph({ alignment:AlignmentType.LEFT, spacing:{after:720},
+      children:[new TextRun({text:cityDate,...r})] }),
+    new Paragraph({ alignment:AlignmentType.LEFT, spacing:{after:60},
+      children:[new TextRun({text:'_________________________________________',...r})] }),
+    new Paragraph({ alignment:AlignmentType.LEFT, spacing:{after:600},
+      children:[new TextRun({text:`${d.titulo} ${d.nome}`,...b})] }),
+    new Paragraph({ alignment:AlignmentType.LEFT, spacing:{after:60},
+      children:[new TextRun({text:'_________________________________________',...r})] }),
+    new Paragraph({ alignment:AlignmentType.LEFT, spacing:{after:960},
+      children:[new TextRun({text:'Universidade Estadual de Campinas',...b})] }),
+    new Paragraph({ alignment:AlignmentType.CENTER, spacing:{after:360},
+      children:[new TextRun({text:'ANEXO I',...b})] }),
+  ];
+
+  d.itens.forEach(item => {
+    if (item.linha1) ch.push(new Paragraph({ alignment:AlignmentType.LEFT, spacing:{after:60},
+      children:[new TextRun({text:item.linha1,...b})] }));
+    if (item.linha2) ch.push(new Paragraph({ alignment:AlignmentType.LEFT, spacing:{after:240},
+      children:[new TextRun({text:' '+item.linha2,...r})] }));
+  });
+
+  const doc2 = new Document({
+    sections:[{ properties:{page:{margin:{top:1134,right:1134,bottom:1134,left:1701}}}, children:ch }],
+  });
+
+  Packer.toBlob(doc2).then(blob => {
+    const safe = d.nome.replace(/[^a-z0-9]/gi,'_').toLowerCase();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `termo_uso_${safe}.docx`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    document.getElementById('msg-ok').style.display = 'block';
+  });
+}
+</script>
+</body>
+</html>
