@@ -208,8 +208,8 @@
   </main>
 </div>
 
-<!-- docx.js -->
-<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+<!-- JSZip (mesma abordagem do gerador FAPESP) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <!-- Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
@@ -478,32 +478,127 @@ function formatDateFull(ds) {
   return `${parseInt(p[0])} de ${months[parseInt(p[1])-1]} de ${y}`;
 }
 
-function gerarDocx() {
-  const btn = document.getElementById('btn-gerar');
-  if (btn) { btn.textContent = 'Gerando…'; btn.disabled = true; }
+// ── DOCX via JSZip + XML (mesma abordagem do gerador FAPESP) ─────────────────
 
+const DOC_NS = `xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"`;
+
+const RELS_ROOT = `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
+  <Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>
+</Relationships>`;
+
+const RELS_WORD = `<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
+</Relationships>`;
+
+const CONTENT_TYPES = `<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default ContentType="application/vnd.openxmlformats-package.relationships+xml" Extension="rels"/>
+  <Default ContentType="application/xml" Extension="xml"/>
+  <Override ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml" PartName="/word/document.xml"/>
+  <Override ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml" PartName="/word/styles.xml"/>
+  <Override ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml" PartName="/word/settings.xml"/>
+  <Override ContentType="application/vnd.openxmlformats-package.core-properties+xml" PartName="/docProps/core.xml"/>
+  <Override ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml" PartName="/docProps/app.xml"/>
+</Types>`;
+
+const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault><w:rPr>
+      <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+      <w:sz w:val="24"/><w:szCs w:val="24"/>
+    </w:rPr></w:rPrDefault>
+    <w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="360" w:lineRule="auto"/></w:pPr></w:pPrDefault>
+  </w:docDefaults>
+</w:styles>`;
+
+const SETTINGS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:compat><w:compatSetting w:val="15" w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word"/></w:compat>
+</w:settings>`;
+
+function xmlEsc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function coreXmlTermo(title) {
+  const now = new Date().toISOString().slice(0,19)+'Z';
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <dc:title>${xmlEsc(title)}</dc:title>
+  <cp:lastModifiedBy>NIPE Termo de Uso</cp:lastModifiedBy>
+  <cp:modified>${now}</cp:modified>
+</cp:coreProperties>`;
+}
+
+const APP_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">
+  <Application>NIPE Termo de Uso</Application>
+</Properties>`;
+
+// helpers XML
+function run(text, bold=false) {
+  const b = bold ? '<w:b/><w:bCs/>' : '';
+  return `<w:r><w:rPr>${b}<w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t xml:space="preserve">${xmlEsc(text)}</w:t></w:r>`;
+}
+
+function para(content, jc='both', spacingAfter=240, spacingLine=360) {
+  return `<w:p><w:pPr><w:jc w:val="${jc}"/><w:spacing w:after="${spacingAfter}" w:line="${spacingLine}" w:lineRule="auto"/></w:pPr>${content}</w:p>`;
+}
+
+function blank() { return `<w:p><w:pPr><w:spacing w:after="0"/></w:pPr></w:p>`; }
+
+function wrapDoc(bodyXml) {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document ${DOC_NS}>
+<w:body>
+${bodyXml}
+<w:sectPr>
+  <w:pgSz w:w="11906" w:h="16838"/>
+  <w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1701" w:header="709" w:footer="709" w:gutter="0"/>
+</w:sectPr>
+</w:body>
+</w:document>`;
+}
+
+async function buildDocxBlob(bodyXml, title) {
+  const zip = new JSZip();
+  zip.file('[Content_Types].xml', CONTENT_TYPES);
+  zip.file('_rels/.rels', RELS_ROOT);
+  zip.file('word/document.xml', wrapDoc(bodyXml));
+  zip.file('word/styles.xml', STYLES_XML);
+  zip.file('word/settings.xml', SETTINGS_XML);
+  zip.file('word/_rels/document.xml.rels', RELS_WORD);
+  zip.file('docProps/core.xml', coreXmlTermo(title));
+  zip.file('docProps/app.xml', APP_XML);
+  return await zip.generateAsync({ type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
+
+async function gerarDocx() {
+  const btn = document.getElementById('btn-gerar');
+  if (btn) { btn.innerHTML = 'Gerando…'; btn.disabled = true; }
   const resetBtn = () => {
     if (btn) { btn.innerHTML = '⬇ Gerar Termo (.docx)'; btn.disabled = false; }
   };
 
-  if (typeof docx === 'undefined') {
-    alert('Erro: biblioteca docx não carregou. Recarregue a página.');
-    resetBtn(); return;
-  }
   const d = collectData();
   if (!d.nome) { alert('Selecione um registro antes de gerar o termo.'); resetBtn(); return; }
-  const { Document, Packer, Paragraph, TextRun, AlignmentType } = docx;
-  const ad   = d.artigo==='a'?'a':'o';
-  const ap   = d.artigo==='a'?'da':'do';
-  const pron = d.artigo==='a'?'a':'o';
-  const aut  = d.artigo==='a'?'Autorizada':'Autorizado';
+
+  const ad   = d.artigo==='a' ? 'a' : 'o';
+  const ap   = d.artigo==='a' ? 'da' : 'do';
+  const pron = d.artigo==='a' ? 'a' : 'o';
+  const aut  = d.artigo==='a' ? 'Autorizada' : 'Autorizado';
 
   const dI = formatDateFull(d.dataInicio);
   const dV = d.vigente && !d.vigente.toLowerCase().includes('sem prazo') ? formatDateFull(d.vigente) : null;
   const periodo = dI && dV ? `${dI} a ${dV}` : (dI ? `${dI} em diante, sem prazo para retorno` : `${d.dataInicio} a ${d.vigente}`);
 
-  const mn  = ['janeiro','fevereiro','março','abril','maio','junho',
-               'julho','agosto','setembro','outubro','novembro','dezembro'];
+  const mn  = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
   const now = new Date();
   const cityDate = `Campinas, ${now.getDate()} de ${mn[now.getMonth()]} de ${now.getFullYear()}.`;
 
@@ -515,54 +610,46 @@ function gerarDocx() {
     + (d.vinculo ? `, ${d.vinculo}` : '')
     + (idParts.length ? ', ' + idParts.join(', ') : '');
 
-  const b = { bold:true, size:24, font:'Arial' };
-  const r = { size:24, font:'Arial' };
-  const J = AlignmentType.JUSTIFIED;
+  // Monta o XML do corpo do documento
+  let body = '';
+  body += para(run('TERMO DE AUTORIZAÇÃO DE USO', true), 'center', 480);
+  body += blank();
 
-  const ch = [
-    new Paragraph({ alignment:AlignmentType.CENTER, spacing:{after:480},
-      children:[new TextRun({text:'TERMO DE AUTORIZAÇÃO DE USO',...b})] }),
-    new Paragraph({ alignment:J, spacing:{after:240,line:360}, children:[
-      new TextRun({text:'A UNIVERSIDADE ESTADUAL DE CAMPINAS, neste ato representada pelo Coordenador do Núcleo Interdisciplinar de Planejamento Energético, ',...r}),
-      new TextRun({text:'Prof. Dr. Marcelo Pereira da Cunha',...b}),
-      new TextRun({text:`, no uso de suas atribuições legalmente conferidas, e nos termos da Deliberação CONSU-A-12/2013, autoriza ${ad} `,...r}),
-      new TextRun({text:idStr,...b}),
-      new TextRun({text:`, a usar os bens móveis, relacionados no anexo I, verso deste documento, de propriedade da Universidade, mantendo-${pron} sob sua responsabilidade, pelo período de ${periodo}.`,...r}),
-    ]}),
-    new Paragraph({ alignment:J, spacing:{after:240,line:360},
-      children:[new TextRun({text:`Os bens serão mantidos ${d.local} para uso nas atividades pertinentes à Universidade, podendo, quando necessário o deslocamento do bem para utilização em eventos científicos, reuniões técnicas e de interesse da Unicamp.`,...r})] }),
-    new Paragraph({ alignment:J, spacing:{after:240,line:360},
-      children:[new TextRun({text:`As despesas com o transporte, guarda, manutenção preventiva e corretiva, assistência técnica do equipamento, bem como outras que incidirem sobre o bem serão de responsabilidade exclusiva ${ap} ${aut}.`,...r})] }),
-    new Paragraph({ alignment:J, spacing:{after:240,line:360},
-      children:[new TextRun({text:`Constitui obrigação ${ap} ${aut} em manter os bens em bom estado de conservação e funcionamento, sendo de sua responsabilidade e ônus o ressarcimento do mesmo em caso de dano, roubo, furto, extravio, quando não houver seguro contratado que dê cobertura a tais eventos e desde que demonstrada a ocorrência de dolo ou culpa no sinistro.`,...r})] }),
-    new Paragraph({ alignment:J, spacing:{after:480,line:360},
-      children:[new TextRun({text:`A presente Autorização, ato precário que é, poderá, a qualquer tempo, ser sumariamente revogada sem ônus para a Universidade.`,...r})] }),
-    new Paragraph({ alignment:AlignmentType.LEFT, spacing:{after:720},
-      children:[new TextRun({text:cityDate,...r})] }),
-    new Paragraph({ alignment:AlignmentType.LEFT, spacing:{after:60},
-      children:[new TextRun({text:'_________________________________________',...r})] }),
-    new Paragraph({ alignment:AlignmentType.LEFT, spacing:{after:600},
-      children:[new TextRun({text:`${d.titulo} ${d.nome}`,...b})] }),
-    new Paragraph({ alignment:AlignmentType.LEFT, spacing:{after:60},
-      children:[new TextRun({text:'_________________________________________',...r})] }),
-    new Paragraph({ alignment:AlignmentType.LEFT, spacing:{after:960},
-      children:[new TextRun({text:'Universidade Estadual de Campinas',...b})] }),
-    new Paragraph({ alignment:AlignmentType.CENTER, spacing:{after:360},
-      children:[new TextRun({text:'ANEXO I',...b})] }),
-  ];
+  body += para(
+    run('A UNIVERSIDADE ESTADUAL DE CAMPINAS, neste ato representada pelo Coordenador do Núcleo Interdisciplinar de Planejamento Energético, ') +
+    run('Prof. Dr. Marcelo Pereira da Cunha', true) +
+    run(`, no uso de suas atribuições legalmente conferidas, e nos termos da Deliberação CONSU-A-12/2013, autoriza ${ad} `) +
+    run(idStr, true) +
+    run(`, a usar os bens móveis, relacionados no anexo I, verso deste documento, de propriedade da Universidade, mantendo-${pron} sob sua responsabilidade, pelo período de ${periodo}.`)
+  );
+
+  body += para(run(`Os bens serão mantidos ${d.local} para uso nas atividades pertinentes à Universidade, podendo, quando necessário o deslocamento do bem para utilização em eventos científicos, reuniões técnicas e de interesse da Unicamp.`));
+  body += para(run(`As despesas com o transporte, guarda, manutenção preventiva e corretiva, assistência técnica do equipamento, bem como outras que incidirem sobre o bem serão de responsabilidade exclusiva ${ap} ${aut}.`));
+  body += para(run(`Constitui obrigação ${ap} ${aut} em manter os bens em bom estado de conservação e funcionamento, sendo de sua responsabilidade e ônus o ressarcimento do mesmo em caso de dano, roubo, furto, extravio, quando não houver seguro contratado que dê cobertura a tais eventos e desde que demonstrada a ocorrência de dolo ou culpa no sinistro.`));
+  body += para(run(`A presente Autorização, ato precário que é, poderá, a qualquer tempo, ser sumariamente revogada sem ônus para a Universidade.`), 'both', 480);
+  body += blank();
+
+  body += para(run(cityDate), 'left', 720);
+  body += blank();
+  body += blank();
+
+  body += para(run('_________________________________________'), 'left', 60);
+  body += para(run(`${d.titulo} ${d.nome}`, true), 'left', 600);
+  body += blank();
+
+  body += para(run('_________________________________________'), 'left', 60);
+  body += para(run('Universidade Estadual de Campinas', true), 'left', 960);
+  body += blank();
+
+  body += para(run('ANEXO I', true), 'center', 360);
 
   d.itens.forEach(item => {
-    if (item.linha1) ch.push(new Paragraph({ alignment:AlignmentType.LEFT, spacing:{after:60},
-      children:[new TextRun({text:item.linha1,...b})] }));
-    if (item.linha2) ch.push(new Paragraph({ alignment:AlignmentType.LEFT, spacing:{after:240},
-      children:[new TextRun({text:' '+item.linha2,...r})] }));
+    if (item.linha1) body += para(run(item.linha1, true), 'left', 60);
+    if (item.linha2) body += para(run(item.linha2), 'left', 240);
   });
 
-  const doc2 = new Document({
-    sections:[{ properties:{page:{margin:{top:1134,right:1134,bottom:1134,left:1701}}}, children:ch }],
-  });
-
-  Packer.toBlob(doc2).then(blob => {
+  try {
+    const blob = await buildDocxBlob(body, `Termo de Uso — ${d.nome}`);
     const safe = d.nome.replace(/[^a-z0-9]/gi,'_').toLowerCase();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -572,12 +659,11 @@ function gerarDocx() {
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     document.getElementById('msg-ok').style.display = 'block';
-    resetBtn();
-  }).catch(err => {
+  } catch(err) {
     alert('Erro ao gerar o documento: ' + err.message);
     console.error(err);
-    resetBtn();
-  });
+  }
+  resetBtn();
 }
 </script>
 </body>
