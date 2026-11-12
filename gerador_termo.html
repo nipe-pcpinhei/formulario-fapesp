@@ -196,7 +196,7 @@
         <div class="field"><label>Vigente até (ou "sem prazo")</label><input type="text" id="f-vigente"></div>
       </div>
       <div class="items-section" id="items-section"></div>
-      <button class="btn-gerar" onclick="gerarDocx()">
+      <button class="btn-gerar" id="btn-gerar" onclick="gerarDocx()">
         <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
           <path d="M10 3v9M6 17h8" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
           <path d="M3 12l7 5 7-5" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -208,8 +208,8 @@
   </main>
 </div>
 
-<!-- docx.js — carregado de forma síncrona antes do código principal -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
+<!-- docx.js -->
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
 <!-- Google Identity Services -->
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 
@@ -479,12 +479,19 @@ function formatDateFull(ds) {
 }
 
 function gerarDocx() {
+  const btn = document.getElementById('btn-gerar');
+  if (btn) { btn.textContent = 'Gerando…'; btn.disabled = true; }
+
+  const resetBtn = () => {
+    if (btn) { btn.innerHTML = '⬇ Gerar Termo (.docx)'; btn.disabled = false; }
+  };
+
   if (typeof docx === 'undefined') {
-    alert('Erro: biblioteca de geração de documentos não carregou. Recarregue a página e tente novamente.');
-    return;
+    alert('Erro: biblioteca docx não carregou. Recarregue a página.');
+    resetBtn(); return;
   }
   const d = collectData();
-  if (!d.nome) { alert('Selecione um registro antes de gerar o termo.'); return; }
+  if (!d.nome) { alert('Selecione um registro antes de gerar o termo.'); resetBtn(); return; }
   const { Document, Packer, Paragraph, TextRun, AlignmentType } = docx;
   const ad   = d.artigo==='a'?'a':'o';
   const ap   = d.artigo==='a'?'da':'do';
@@ -563,11 +570,13 @@ function gerarDocx() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     document.getElementById('msg-ok').style.display = 'block';
+    resetBtn();
   }).catch(err => {
     alert('Erro ao gerar o documento: ' + err.message);
     console.error(err);
+    resetBtn();
   });
 }
 </script>
