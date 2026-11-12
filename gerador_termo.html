@@ -208,10 +208,10 @@
   </main>
 </div>
 
-<!-- Google Identity Services -->
-<script src="https://accounts.google.com/gsi/client" async></script>
-<!-- docx.js -->
+<!-- docx.js — carregado de forma síncrona antes do código principal -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/docx/8.5.0/docx.umd.min.js"></script>
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────────────────
@@ -479,7 +479,12 @@ function formatDateFull(ds) {
 }
 
 function gerarDocx() {
+  if (typeof docx === 'undefined') {
+    alert('Erro: biblioteca de geração de documentos não carregou. Recarregue a página e tente novamente.');
+    return;
+  }
   const d = collectData();
+  if (!d.nome) { alert('Selecione um registro antes de gerar o termo.'); return; }
   const { Document, Packer, Paragraph, TextRun, AlignmentType } = docx;
   const ad   = d.artigo==='a'?'a':'o';
   const ap   = d.artigo==='a'?'da':'do';
@@ -555,9 +560,14 @@ function gerarDocx() {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = `termo_uso_${safe}.docx`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(a.href);
     document.getElementById('msg-ok').style.display = 'block';
+  }).catch(err => {
+    alert('Erro ao gerar o documento: ' + err.message);
+    console.error(err);
   });
 }
 </script>
